@@ -1,0 +1,6 @@
+; $Id $
+name = Simplenews Scheduler
+description = "Allows a schedule to be set for sending (and resending) a simplenews item"
+dependencies = simplenews
+package = Mail
+

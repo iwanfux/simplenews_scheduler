@@ -1,0 +1,250 @@
+<?php
+
+/**
+ *  @todo: specify a view(s) to check, so if this view doesnt return any nodes, dont send the newsletter
+ *  @todo: specify maximum number of times a newsletter should be sent
+ * 
+*/
+
+/**
+ * Implementation of hook_perm().
+ */
+function simplenews_scheduler_perm() {
+  return array('manage simplenews node schedules');
+}
+
+function simplenews_scheduler_menu($may_cache) {
+  
+  $items = array();
+  
+  if (arg(0) == 'node' && is_numeric(arg(1))) {
+    $node = node_load(arg(1));
+    $snid = false;
+    
+    // use this for the original node or any editions of the node
+    if ($node->simplenews_scheduler) {
+      $snid = arg(1);
+    } 
+    if ($node->simplenews_scheduler_edition) {
+      $snid = $node->simplenews_scheduler_edition['snid'];
+    } 
+    
+    if ($snid) { // workflow exists for this type
+      $items[] = array('path' => "node/$node->nid/simplenews_scheduler",
+        'title'    => t('Scheduled Newsletter'),
+        'access'   => user_access('manage simplenews node schedules'),
+        'type'     => MENU_LOCAL_TASK,
+        'weight'   => 2,
+        'callback' => 'simplenews_scheduler_node_page',
+        'callback arguments' => $snid,
+      );
+    }
+  }
+
+  /**
+   * Always load simplenews_schedulerr_views.inc when views module is present
+   */
+  if (module_exists('views')) {
+    include_once(drupal_get_path('module', 'simplenews_scheduler') .'/simplenews_scheduler_views.inc');
+  }
+
+  return $items;
+}
+
+
+/**
+ * Implementation of hook_form_alter().
+ * 
+ */
+function simplenews_scheduler_form_alter($form_id, &$form) {
+  
+  if($form_id == 'simplenews_node_form') {
+    // todo: on this radio click show/unshow the schedule form part
+    $form['sending_options']['send']['#options'][]='Send newsletter according to schedule';
+    
+    $form['sending_options']['schedule'] = array(
+      '#type' => 'fieldset',      
+      '#title' => t('Schedule details'),
+      '#weight' => 5,
+      '#collapsible' => FALSE
+    );
+    if (!$form['#node']->simplenews_scheduler_edition) {  
+      if (is_array($form['#node']->simplenews_scheduler) ) {
+        $form['sending_options']['send']['#default_value']=sizeof($form['sending_options']['send']['#options'])-1;
+      }
+          
+      $form['sending_options']['schedule']['send_interval'] = array(
+          '#type' => 'select',
+          '#title' => t('Send once per'),
+          '#default_value' => is_array($form['#node']->simplenews_scheduler) ? $form['#node']->simplenews_scheduler['send_interval'] : 'week',
+          '#options' => array(
+            'day' => t('Day'),
+            'week' => t('Week'),
+            'month' => t('Month'),
+          ),
+          '#description' => t('Interval to send at'),
+        );
+        
+      $form['sending_options']['schedule']['interval_start'] = array(
+          '#type' => 'textfield',
+          '#title' => t('Starting on'),
+          '#default_value' => is_array($form['#node']->simplenews_scheduler) ? format_date($form['#node']->simplenews_scheduler['sched_start'],'custom','F j, Y H:i') : format_date(time(),'custom','F j, Y H:i'),
+          '#description' => t('Note: this will be rounded UP to the nearest hour or when ever your cron runs.'),
+        );
+       
+  
+      $form['sending_options']['schedule']['about_intervals'] = array(
+          '#value' => 'Intervals work by creating a new node at the desired time and marking this to be sent.',
+        );
+      
+    } else {
+      $content = t('This node has been sent as part of a scheduled edition')."<BR>";
+      $content .= l(t('View the original newsletter here'),'node/'.$form['#node']->simplenews_scheduler_edition['snid']);
+      $form['sending_options']['schedule']['edition'] = array(
+        '#value' => $content
+      );
+    }
+  }
+  
+}
+
+
+function simplenews_scheduler_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  if( is_numeric($node->nid) && ($op == 'insert' || $op == 'update') && $node->type == 'simplenews' ) {
+
+    db_query("DELETE FROM {simplenews_scheduler} WHERE `snid` = %d",$node->nid);
+    
+    if($_POST['send'] == 3) {
+      $sched_start = strtotime(check_plain($_POST['interval_start']));
+      
+      db_query("INSERT INTO {simplenews_scheduler} (snid, sched_interval, sched_start) VALUES (%d, '%s', %d)", 
+                $node->nid, 
+                check_plain($_POST['send_interval']), 
+                $sched_start );
+    }
+              
+  }
+  
+  if($node->type == 'simplenews'  && $op == 'load') {
+    $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE `snid` = %d",$node->nid);
+    $row = db_fetch_array($result);
+    if($row) {
+      $node->simplenews_scheduler = $row;
+    } else {
+      // maybe this was an edition that has been sent?
+      $result = db_query("SELECT * FROM {simplenews_scheduler_editions} WHERE `edition_snid` = %d",$node->nid);
+      $row = db_fetch_array($result);
+      if($result) {
+        $node->simplenews_scheduler_edition = $row;
+      }
+    }
+  }
+}
+ 
+/**
+ * implementation of hook_cron
+ * 
+ * essentially we are just checking against a status table and recreating nodes to be sent
+ *
+ * @todo: sometimes a month is not 30 days, we need to handle this better
+ *        maybe we can see how many seconds(days) long the current month cycle is?
+ * 
+ *        run until a certain date
+ *        run until max no. of editions
+ *        dont run unless X or more nodes in selectable views
+ * 
+ */
+  
+function simplenews_scheduler_cron() {
+  
+  
+  $intervals['day']=86400;
+  $intervals['week']=$intervals['day']*7;
+  $intervals['month']=$intervals['day']*30;
+  
+  foreach($intervals as $interval => $seconds) {
+    // check daily items that need to be sent
+    $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE UNIX_TIMESTAMP()-last_run > %d AND `sched_interval` = '%s'", $seconds, $interval);
+    while ($result = db_fetch_array($result) ) {
+      $nid = simplenews_scheduler_new_edition($result["snid"]);
+
+      db_query("UPDATE {simplenews_scheduler} SET last_run = UNIX_TIMESTAMP() where sid = %d",$result["sid"]);
+            
+      db_query("INSERT INTO {simplenews_scheduler_editions} (snid, edition_snid, date_issued) 
+                VALUES (%d, %d, UNIX_TIMESTAMP())",
+                $result["snid"],
+                $nid);
+    }
+  }
+}
+
+function simplenews_scheduler_new_edition($sched_nid) {
+
+  $node = simplenews_replace_vars(node_load(array('nid'=>$sched_nid)));
+  
+  $node = node_build_content($node, FALSE, FALSE);
+  
+  $content = drupal_render($node->content);
+  
+  
+  // @todo: how the hell do you save taxonomy correctly/better?
+  $tids = array();
+  foreach($node->taxonomy as $tid => $tax) {
+    $tids[$tid]=$tid;
+  }
+  
+  $node->taxonomy = $tids;
+  
+  
+  // now save it as a new node
+  unset($node->nid);
+  
+  // append title
+  $edition_no = simplenews_scheduler_get_edition_number($sched_nid)+1;
+  $node->title = theme('simplenews_scheduler_title',$node->title, $edition_no);
+  
+  // trigger it for sending
+  $node->send = 1;
+  node_save($node);
+
+
+  return $node->nid;
+}
+
+function simplenews_scheduler_get_edition_number($sched_nid) {
+  $result = db_fetch_array(db_query("SELECT COUNT(*) as c from {simplenews_scheduler_editions} where snid = %d",$sched_nid));
+  return $result['c'];
+}
+
+function simplenews_scheduler_node_page( $nid ) {
+  
+  drupal_set_title('Scheduled Newsletter Editions');
+   
+  $output .= '<p>'.t('This is part of a scheduled newsletter configuration')."<BR>";
+  $output .= l(t('View the original newsletter here'),'node/'.$nid).'</p>';
+  
+  $output .= "<div>";
+  $result = pager_query("SELECT * FROM {simplenews_scheduler_editions} s LEFT JOIN {node} n ON n.nid = s.snid where s.snid=%d", 20, 0, NULL, $nid);
+  
+  $rows = array();
+  while ($history = db_fetch_object($result)) {
+    $newsletter_node = node_load(array('nid'=>$history->edition_snid));
+    $rows[] = array(
+      format_date($history->date_issued),
+      l(check_plain($newsletter_node->title),'node/'.$history->edition_snid)
+    );
+  }
+
+  $output .= '<p>';
+  $output .= theme('table', array(t('Date sent'), t('Node')), $rows, array('class' => 'scheduled_history'), '<strong>'.t('Scheduled Newsletter History').'</strong>');
+  $output .= theme('pager', 20)."<p>";
+  $output .= '</p>';
+  
+  $output .= "</div>";
+  
+  return $output;
+}
+
+function theme_simplenews_scheduler_title($node_title, $edition_number) {
+  return "$node_title (".t('edition')." $edition_number)";
+}
