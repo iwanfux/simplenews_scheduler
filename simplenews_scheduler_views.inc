@@ -12,19 +12,8 @@
 function simplenews_scheduler_views_tables() {
   $tables['simplenews_scheduler'] = array(
     'name' => 'simplenews_scheduler',
-    'fields' => array(),
-    'join' => array(
-      'left' => array(
-        'table' => 'node',
-        'field' => 'nid',
-      ),
-      'right' => array(
-        'field' => 'snid',
-      ),
-    ),
-    'sorts' => array(),
     'filters' => array(
-      'last_run' => array(
+      'node.created' => array(
         'name' => t('Simplenews schedule: node created'),
         'list' => 'simplenews_scheduler_handler_newsletters',
         'list-type' => 'list',
@@ -54,15 +43,11 @@ function simplenews_scheduler_handler_newsletters() {
 
 
 function simplenews_scheduler_filter_value($op, $filter, $filterinfo, &$query) {
-
-  // get oldest last_run time of the selected newsletter
-  $result=db_query("SELECT * from {simplenews_scheduler} WHERE snid IN (%s) ORDER BY last_run limit 0,1",implode(',',$filter['value']));
-  $last_run = db_fetch_array($result);
   
-  $table = $filterinfo['table'];
-  $column = $filterinfo['field'];
-  $field = "node.created";
-  $query->add_where("%s %s %d", $field, $filter['operator'], $last_run['last_run']);
+    // get oldest last_run time of the selected newsletter
+    $result=db_query("SELECT * from {simplenews_scheduler} WHERE snid IN (%s) ORDER BY last_run limit 0,1",implode(',',$filter['value']));
+    $last_run = db_fetch_array($result);  
+    $query->add_where("node.created %s %d", $filter['operator'], $last_run['last_run']);
 }
 
 
