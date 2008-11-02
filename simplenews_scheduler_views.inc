@@ -32,9 +32,13 @@ function simplenews_scheduler_handler_newsletters() {
   
   $list = array();
   
-  $result=db_query("SELECT * FROM {simplenews_scheduler} s LEFT JOIN {node} n ON s.snid=n.nid");
+  $result = db_query("SELECT ss.*,n.title FROM {simplenews_scheduler} ss JOIN {node} n ON n.nid = ss.snid GROUP BY snid");
   while($row = db_fetch_array($result)) {
-    $list[$row['nid']]="Newsletter: ".$row['title'];
+    $list[$row['snid']]="Newsletter: ".$row['title'];
+  }
+  
+  if(sizeof($list) ==0) {
+    drupal_set_message('No current newsletter found to filter against, you should create a simplenews newsletter first.'); 
   }
   
   
@@ -44,13 +48,30 @@ function simplenews_scheduler_handler_newsletters() {
 
 function simplenews_scheduler_filter_value($op, $filter, $filterinfo, &$query) {
   
-    // get oldest last_run time of the selected newsletter
-    $result=db_query("SELECT * from {simplenews_scheduler} WHERE snid IN (%s) ORDER BY last_run limit 0,1",implode(',',$filter['value']));
-    $last_run = db_fetch_array($result);  
-    $query->add_where("node.created %s %d", $filter['operator'], $last_run['last_run']);
+  // get oldest last_run time of the selected newsletter
+  $result=db_query("SELECT ss.*,n.created FROM {simplenews_scheduler} ss
+                      LEFT JOIN {node} n on n.nid = ss.snid
+                      WHERE ss.snid IN (%s) 
+                      ORDER BY ss.last_run 
+                      LIMIT 0,1",implode(',',$filter['value']));
+  $last_run = db_fetch_array($result);
+  
+  // then it hasnt run yet, so we use the creation date of the newsletter parent instead
+  $trigger_time = $last_run['last_run'] > 0 ? $last_run['last_run'] : $last_run['created'];
+  $query->add_field('created', 'node');
+  $query->add_where("node.created %s %d", $filter['operator'], $trigger_time);
 }
 
 
 function simplenews_scheduler_handler_operator_ca() {
-  return array('>=' => t("After Most Recent Edition Of"),'<' => t("Before Most Recent Edition Of"));
+  return array('>' => t("After Most Recent Edition Of"),'<' => t("Before Most Recent Edition Of"));
+}
+
+// any view that has this as a filter should be invalidate cache
+function simplenews_scheduler_views_pre_query(&$view) {
+  foreach($view->filter as $i => $filter) {
+    if( $filter['field'] == 'simplenews_scheduler.node.created') {
+      $view->is_cacheable = false;
+    }
+  }
 }
