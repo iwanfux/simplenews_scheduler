@@ -92,8 +92,8 @@ function simplenews_scheduler_form_alter($form_id, &$form) {
       $form['sending_options']['schedule']['interval_start'] = array(
           '#type' => 'textfield',
           '#title' => t('Starting on'),
-          '#default_value' => is_array($form['#node']->simplenews_scheduler) ? format_date($form['#node']->simplenews_scheduler['sched_start'],'custom','F j, Y H:i') : format_date(time(),'custom','F j, Y H:i'),
-          '#description' => t('Note: this will be rounded UP to the nearest hour or when ever your cron runs.'),
+          '#default_value' => is_array($form['#node']->simplenews_scheduler) ? format_date($form['#node']->simplenews_scheduler['sched_start'],'custom','F j, Y H:i') : format_date(gmmktime(),'custom','F j, Y H:i'),
+          '#description' => t('Note: this will be rounded UP to the nearest hour or when ever your cron runs.')
         );
        
   
@@ -126,7 +126,7 @@ function simplenews_scheduler_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
                 check_plain($_POST['sched_interval']), 
                 $sched_start );
     }
-              
+     
   }
   
   if($node->type == 'simplenews'  && $op == 'load') {
@@ -168,7 +168,8 @@ function simplenews_scheduler_cron() {
   
   foreach($intervals as $interval => $seconds) {
     // check daily items that need to be sent
-    $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE UNIX_TIMESTAMP()-last_run > %d AND `sched_interval` = '%s'", $seconds, $interval);
+    $now_time =format_date(gmmktime(),'custom','U');
+    $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE %d - last_run > %d AND `sched_interval` = '%s'", $now_time, $seconds, $interval);
     while ($result = db_fetch_array($result) ) {
       $nid = simplenews_scheduler_new_edition($result["snid"]);
 
