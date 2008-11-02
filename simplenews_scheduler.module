@@ -134,7 +134,7 @@ function simplenews_scheduler_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
       // maybe this was an edition that has been sent?
       $result = db_query("SELECT * FROM {simplenews_scheduler_editions} WHERE `edition_snid` = %d",$node->nid);
       $row = db_fetch_array($result);
-      if($result) {
+      if($row) {
         $node->simplenews_scheduler_edition = $row;
       }
     }
