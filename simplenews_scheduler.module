@@ -51,21 +51,22 @@ function simplenews_scheduler_menu($may_cache) {
   return $items;
 }
 
-
 /**
  * Implementation of hook_form_alter().
  * 
  */
 function simplenews_scheduler_form_alter($form_id, &$form) {
+  global $user;
   
   if($form_id == 'simplenews_node_form') {
     // todo: on this radio click show/unshow the schedule form part
     $form['sending_options']['send']['#options'][]='Send newsletter according to schedule';
-    
+
     $form['sending_options']['schedule'] = array(
       '#type' => 'fieldset',      
       '#title' => t('Schedule details'),
       '#weight' => 5,
+      '#attributes' => array('class' => 'schedule_info'),
       '#collapsible' => FALSE
     );
     if (!$form['#node']->simplenews_scheduler_edition) {  
@@ -89,13 +90,26 @@ function simplenews_scheduler_form_alter($form_id, &$form) {
           $form['sending_options']['schedule']['sched_interval']['#default_value'] = $form['#node']->simplenews_scheduler['sched_interval'];
         }
       }
-      $form['sending_options']['schedule']['interval_start'] = array(
-          '#type' => 'textfield',
-          '#title' => t('Starting on'),
-          '#default_value' => is_array($form['#node']->simplenews_scheduler) ? format_date($form['#node']->simplenews_scheduler['sched_start'],'custom','F j, Y H:i') : format_date(gmmktime(),'custom','F j, Y H:i'),
-          '#description' => t('Note: this will be rounded UP to the nearest hour or when ever your cron runs.')
-        );
-       
+    
+      // surely theres a better way get to $date
+      $date = $form['#node']->simplenews_scheduler['sched_start'];
+      $t= date_getdate($date);
+
+      $m = str_pad($t['month'],2,0,STR_PAD_LEFT);
+      $d = str_pad($t['day'],2,0,STR_PAD_LEFT);        
+
+      $date = $t['year'].'-'.$m.'-'.$d.' '.$t['hour'].':'.$t['minute'].':00';
+      
+      $form['sending_options']['schedule']['sched_start'] = array(
+        '#type' => 'date_select',
+        '#title' => t('Start sending on'),
+        '#default_value' => $date,
+        '#date_type' => DATE_DATETIME,
+        '#date_timezone' => date_default_timezone_name(),
+        '#date_format' => 'm/d/Y - H:i',
+        '#date_increment' => 1,
+        '#date_year_range' => '-3:+3',
+      );
   
       $form['sending_options']['schedule']['about_intervals'] = array(
           '#value' => 'Intervals work by creating a new node at the desired time and marking this to be sent.',
@@ -114,17 +128,29 @@ function simplenews_scheduler_form_alter($form_id, &$form) {
 
 
 function simplenews_scheduler_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  global $user;
+  
   if( is_numeric($node->nid) && ($op == 'insert' || $op == 'update') && $node->type == 'simplenews' ) {
 
     db_query("DELETE FROM {simplenews_scheduler} WHERE `snid` = %d",$node->nid);
     
     if($_POST['send'] == 3) {
-      $sched_start = strtotime(check_plain($_POST['interval_start']));
       
-      db_query("INSERT INTO {simplenews_scheduler} (snid, sched_interval, sched_start) VALUES (%d, '%s', %d)", 
-                $node->nid, 
-                check_plain($_POST['sched_interval']), 
-                $sched_start );
+      if($_POST['sched_start']) {        
+        // convert the user time back to GMT time and use that as our record
+        $t = $_POST['sched_start'];
+  
+        $m = str_pad($t['month'],2,0,STR_PAD_LEFT);
+        $d = str_pad($t['day'],2,0,STR_PAD_LEFT);        
+        $date_str = $t['year'].'-'.$m.'-'.$d.' '.$t['hour'].':'.$t['minute'].':00';
+        $date =date_create($date_str, timezone_open('UTC'));
+        $d = date_array($date);
+        $sched_start = $d['0'];        
+        db_query("INSERT INTO {simplenews_scheduler} (snid, sched_interval, sched_start) VALUES (%d, '%s', %d)", 
+                  $node->nid, 
+                  check_plain($_POST['sched_interval']), 
+                  $sched_start );
+       }
     }
      
   }
@@ -161,24 +187,24 @@ function simplenews_scheduler_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
   
 function simplenews_scheduler_cron() {
   
-  
   $intervals['day']=86400;
   $intervals['week']=$intervals['day']*7;
   $intervals['month']=$intervals['day']*30;
   
   foreach($intervals as $interval => $seconds) {
     // check daily items that need to be sent
-    $now_time =format_date(gmmktime(),'custom','U');
-    $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE %d - last_run > %d AND `sched_interval` = '%s'", $now_time, $seconds, $interval);
+    $now_time = gmmktime();
+    $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE %d - last_run > %d AND `sched_interval` = '%s'", $now_time, $seconds, $interval);    
     while ($result = db_fetch_array($result) ) {
       $nid = simplenews_scheduler_new_edition($result["snid"]);
 
-      db_query("UPDATE {simplenews_scheduler} SET last_run = UNIX_TIMESTAMP() where sid = %d",$result["sid"]);
+      db_query("UPDATE {simplenews_scheduler} SET last_run = %d WHERE sid = %d", gmmktime(), $result["sid"]);
             
       db_query("INSERT INTO {simplenews_scheduler_editions} (snid, edition_snid, date_issued) 
-                VALUES (%d, %d, UNIX_TIMESTAMP())",
+                VALUES (%d, %d, %d)",
                 $result["snid"],
-                $nid);
+                $nid,
+                gmmktime());
     }
   }
 }
@@ -225,11 +251,11 @@ function simplenews_scheduler_node_page( $nid ) {
   
   drupal_set_title('Scheduled Newsletter Editions');
    
-  $output .= '<p>'.t('This is part of a scheduled newsletter configuration')."<BR>";
-  $output .= l(t('View the original newsletter here'),'node/'.$nid).'</p>';
   
   $output .= "<div>";
-  $result = pager_query("SELECT * FROM {simplenews_scheduler_editions} s LEFT JOIN {node} n ON n.nid = s.snid where s.snid=%d", 20, 0, NULL, $nid);
+  $result = pager_query("SELECT * FROM {simplenews_scheduler_editions} s 
+                            LEFT JOIN {node} n ON n.nid = s.snid 
+                            WHERE s.snid = %d", 20, 0, NULL, $nid);
   
   $rows = array();
   while ($history = db_fetch_object($result)) {
@@ -239,13 +265,20 @@ function simplenews_scheduler_node_page( $nid ) {
       l(check_plain($newsletter_node->title),'node/'.$history->edition_snid)
     );
   }
+  
   if(count($rows)) {
+    $output .= '<p>'.t('This is part of a scheduled newsletter configuration')."<BR>";
+    $output .= l(t('View the original newsletter here'),'node/'.$nid).'</p>';    
     $output .= '<p>';
     $output .= theme('table', array(t('Date sent'), t('Node')), $rows, array('class' => 'scheduled_history'), '<strong>'.t('Scheduled Newsletter History').'</strong>');
     $output .= theme('pager', 20)."<p>";
     $output .= '</p>';
   } else {
-    $output .= t('No newsletters have been sent');
+    $output .= t('No scheduled newsletters have been sent.');
+    $result = db_fetch_array(db_query('SELECT count(*) as c from {simplenews_scheduler} WHERE `snid` = %d', $nid));
+    if($result['c'] == '1') {
+      $output .= '<BR>'.t('This is the original newsletter of which all editions are based on.');
+    }
   }
   $output .= "</div>";
   

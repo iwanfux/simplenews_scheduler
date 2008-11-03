@@ -14,8 +14,8 @@ function simplenews_scheduler_install() {
     ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
   
   $result[] = db_query("CREATE TABLE {simplenews_scheduler_editions} (
-    `snid` int(10) NOT NULL default '0',
     `edition_snid` int(10) NOT NULL default '0',
+    `snid` int(10) NOT NULL default '0',
     `date_issued` int(11) NOT NULL default '0'
     ) ENGINE=MyISAM DEFAULT CHARSET=utf8;");
 
