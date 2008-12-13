@@ -237,8 +237,14 @@ function simplenews_scheduler_new_edition($sched_nid) {
   // trigger it for sending
   $node->send = 1;
   node_save($node);
-
-  watchdog('simplenews', 'Saved new node ready to be sent node-id: '.$node->nid);
+  watchdog('simplenews_scheduler', 'Saved new node ready to be sent node-id: '.$node->nid);
+  
+  // prepare the correct status for simplenews to pickup
+  db_query("UPDATE {simplenews_newsletters} SET s_status=1 WHERE vid=%d",$node->vid);
+  
+  // we have to call simplenews_nodeapi directly as we wont have a new node-id before we save
+  simplenews_nodeapi($node, 'insert');  
+  
   return $node->nid;
 }
 
