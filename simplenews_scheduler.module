@@ -237,6 +237,11 @@ function simplenews_scheduler_new_edition($sched_nid) {
   $edition_no = simplenews_scheduler_get_edition_number($sched_nid)+1;
   $node->title = theme('simplenews_scheduler_title',$node->title, $edition_no);
   
+  // output format for all newly created items should just be Full HTML, incase of views output etc
+  if ($format_id=db_result(db_query('SELECT format FROM {filter_formats} WHERE name like "full html"')) ) {
+    $node->format=$format_id;
+  }
+  
   // trigger it for sending
   $node->send = 1;
   node_save($node);
