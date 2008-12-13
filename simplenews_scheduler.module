@@ -93,7 +93,7 @@ function simplenews_scheduler_form_alter($form_id, &$form) {
     
       // surely theres a better way get to $date
       $date = $form['#node']->simplenews_scheduler['sched_start'];
-      $t= date_getdate($date);
+      $t= getdate($date);
 
       $m = str_pad($t['month'],2,0,STR_PAD_LEFT);
       $d = str_pad($t['day'],2,0,STR_PAD_LEFT);        
