@@ -94,19 +94,15 @@ function simplenews_scheduler_form_alter($form_id, &$form) {
     
       // surely theres a better way get to $date
       $date = $form['#node']->simplenews_scheduler['sched_start'];
-      $t= getdate($date);
-
-      $m = str_pad($t['mon'],2,0,STR_PAD_LEFT);
-      $d = str_pad($t['mday'],2,0,STR_PAD_LEFT);        
-
-      $date = $t['year'].'-'.$m.'-'.$d.' '.$t['hours'].':'.$t['minutes'].':00';
+      
+      // convert to something date.module element understands
+      $date_str = gmstrftime("%Y-%m-%d %H:%M:00",$date+$user->timezone);
       
       $form['sending_options']['schedule']['sched_start'] = array(
         '#type' => 'date_select',
         '#title' => t('Start sending on'),
-        '#default_value' => $date,
+        '#default_value' => $date_str,
         '#date_type' => DATE_DATETIME,
-        '#date_timezone' => date_default_timezone_name(),
         '#date_format' => 'm-d-Y - H:i',
         '#date_increment' => 1,
         '#date_year_range' => '0:+3',
@@ -147,9 +143,10 @@ function simplenews_scheduler_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
         $m = str_pad($t['month'],2,0,STR_PAD_LEFT);
         $d = str_pad($t['day'],2,0,STR_PAD_LEFT);        
         $date_str = $t['year'].'-'.$m.'-'.$d.' '.$t['hour'].':'.$t['minute'].':00';
-        $date = date_create($date_str, timezone_open('UTC'));
-        $d = date_array($date);
-        $sched_start = $d['0']-$user->timezone;        
+
+	// remove user timezone from record so its back to GMT/UTC for the DB
+	$sched_start =gmmktime ($t['hour'], $t['minute'], 0, $m, $d, $t['year'])-$user->timezone;
+	
         db_query("INSERT INTO {simplenews_scheduler} (snid, sched_interval, sched_start) VALUES (%d, '%s', %d)", 
                   $node->nid, 
                   check_plain($_POST['sched_interval']), 
@@ -215,6 +212,8 @@ function simplenews_scheduler_cron() {
 }
 
 function simplenews_scheduler_new_edition($sched_nid) {
+
+  watchdog('simplenews_scheduler', 'Creating a fresh newsletter edition');
 
   $node = simplenews_replace_vars(node_load(array('nid'=>$sched_nid)));
   
@@ -304,3 +303,4 @@ function simplenews_scheduler_node_page( $nid ) {
 function theme_simplenews_scheduler_title($node_title, $edition_number) {
   return "$node_title (".t('edition')." $edition_number)";
 }
+
