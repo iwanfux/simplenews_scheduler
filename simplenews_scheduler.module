@@ -69,6 +69,7 @@ function simplenews_scheduler_form_alter($form_id, &$form) {
       '#attributes' => array('class' => 'schedule_info'),
       '#collapsible' => FALSE
     );
+    
     if (!$form['#node']->simplenews_scheduler_edition) {  
       if (is_array($form['#node']->simplenews_scheduler) ) {
         $form['sending_options']['send']['#default_value']=sizeof($form['sending_options']['send']['#options'])-1;
@@ -95,10 +96,10 @@ function simplenews_scheduler_form_alter($form_id, &$form) {
       $date = $form['#node']->simplenews_scheduler['sched_start'];
       $t= getdate($date);
 
-      $m = str_pad($t['month'],2,0,STR_PAD_LEFT);
-      $d = str_pad($t['day'],2,0,STR_PAD_LEFT);        
+      $m = str_pad($t['mon'],2,0,STR_PAD_LEFT);
+      $d = str_pad($t['mday'],2,0,STR_PAD_LEFT);        
 
-      $date = $t['year'].'-'.$m.'-'.$d.' '.$t['hour'].':'.$t['minute'].':00';
+      $date = $t['year'].'-'.$m.'-'.$d.' '.$t['hours'].':'.$t['minutes'].':00';
       
       $form['sending_options']['schedule']['sched_start'] = array(
         '#type' => 'date_select',
@@ -106,13 +107,13 @@ function simplenews_scheduler_form_alter($form_id, &$form) {
         '#default_value' => $date,
         '#date_type' => DATE_DATETIME,
         '#date_timezone' => date_default_timezone_name(),
-        '#date_format' => 'm/d/Y - H:i',
+        '#date_format' => 'm-d-Y - H:i',
         '#date_increment' => 1,
-        '#date_year_range' => '-3:+3',
+        '#date_year_range' => '0:+3',
       );
   
       $form['sending_options']['schedule']['about_intervals'] = array(
-          '#value' => 'Intervals work by creating a new node at the desired time and marking this to be sent.',
+          '#value' => 'Intervals work by creating a new node at the desired time and marking this to be sent, ensure you have your '.l('site timezones configured','admin/settings/date-time').' and '.l('user timezone configured','user/'.$user->uid.'/edit'),
         );
       
     } else {
@@ -146,9 +147,9 @@ function simplenews_scheduler_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
         $m = str_pad($t['month'],2,0,STR_PAD_LEFT);
         $d = str_pad($t['day'],2,0,STR_PAD_LEFT);        
         $date_str = $t['year'].'-'.$m.'-'.$d.' '.$t['hour'].':'.$t['minute'].':00';
-        $date =date_create($date_str, timezone_open('UTC'));
+        $date = date_create($date_str, timezone_open('UTC'));
         $d = date_array($date);
-        $sched_start = $d['0'];        
+        $sched_start = $d['0']-$user->timezone;        
         db_query("INSERT INTO {simplenews_scheduler} (snid, sched_interval, sched_start) VALUES (%d, '%s', %d)", 
                   $node->nid, 
                   check_plain($_POST['sched_interval']), 
@@ -199,10 +200,11 @@ function simplenews_scheduler_cron() {
     $now_time = gmmktime();
     $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE %d - last_run > %d AND `sched_interval` = '%s'", $now_time, $seconds, $interval);    
     while ($row = db_fetch_array($result) ) {
-      $nid = simplenews_scheduler_new_edition($row["snid"]);
 
       db_query("UPDATE {simplenews_scheduler} SET last_run = %d WHERE sid = %d", gmmktime(), $row["sid"]);
-            
+
+      $nid = simplenews_scheduler_new_edition($row["snid"]);
+
       db_query("INSERT INTO {simplenews_scheduler_editions} (snid, edition_snid, date_issued) 
                 VALUES (%d, %d, %d)",
                 $row["snid"],
