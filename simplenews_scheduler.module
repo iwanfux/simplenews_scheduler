@@ -186,9 +186,15 @@ function simplenews_scheduler_cron() {
 
 function simplenews_scheduler_new_edition($sched_nid) {
 	watchdog('simplenews_scheduler', t('Creating a fresh newsletter edition'));
+  	// Store the current user to be able to switch back later.
+  	simplenews_switch_user();
 	$node = node_load(array('nid'=>$sched_nid));
+  	// Switch user to the node author to use the correct permissions.
+  	simplenews_switch_user($node->uid);
 	$node = node_build_content($node, FALSE, FALSE);
 	$content = drupal_render($node->content);
+  	// Switch back to the original user.
+  	simplenews_switch_user();
 
 	// @todo: how the hell do you save taxonomy correctly/better?
 	$tids = array();
