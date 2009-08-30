@@ -1,3 +1,5 @@
+// $Id$
+
 /**
  * Set scheduler info's display attribute to hide and show based on the option value.
  */
