@@ -1,6 +1,6 @@
 ; $Id$
 name = Simplenews Scheduler
-description = "Allows a schedule to be set for sending (and resending) a simplenews item"
+description = "Allows a schedule to be set for sending (and resending) a Simplenews item."
 dependencies[] = simplenews
 dependencies[] = date
 package = Mail
