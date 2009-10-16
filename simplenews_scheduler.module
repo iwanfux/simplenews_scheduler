@@ -111,8 +111,10 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
         '#default_value'   => $date_str_start,
         '#date_type'       => DATE_DATETIME,
         '#date_format'     => 'm-d-Y - H:i',
+        '#date_label_position' => 'none',
         '#date_increment'  => 1,
         '#date_year_range' => '0:+3',
+      	'#required'        => TRUE,
         '#description'     => t('Intervals work by creating a new node at the desired time and marking this to be sent, 
                                  ensure you have your <a href="@site">site timezones</a> configured and <a href="@user">user timezone</a> configured.', 
                                  array('@site' => url('admin/settings/date-time'), '@user' => url('user/'. $user->uid .'/edit'))),
@@ -131,8 +133,10 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
         '#default_value'   => $date_str_stop,
         '#date_type'       => DATE_DATETIME,
         '#date_format'     => 'm-d-Y - H:i',
+        '#date_label_position' => 'none',
         '#date_increment'  => 1,
         '#date_year_range' => '0:+3',
+        '#required'        => TRUE,
       );
       
       $form['simplenews']['schedule']['sched_stop_edition'] = array(
