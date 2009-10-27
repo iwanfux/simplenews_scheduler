@@ -1,5 +1,10 @@
 // $Id$ 
 
+Simplenews Scheduler 6.x-1.x-dev, 2009-10-27
+--------------------------------------------
+- Fixed illegal choice detected bug.
+- Better cron interval.
+
 Simplenews Scheduler 6.x-1.x-dev, 2009-10-16
 --------------------------------------------
 - Fixed missing update procedure.
