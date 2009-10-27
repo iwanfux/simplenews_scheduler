@@ -98,8 +98,8 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
       }
     
       // surely theres a better way get to $date
-      $date_start = ($scheduler['sched_start'])? $scheduler['sched_start'] : time();
-      $date_stop = ($scheduler['sched_stop_date'])? $scheduler['sched_stop_date'] : time();
+      $date_start = ($scheduler['sched_start']) ? $scheduler['sched_start'] : time();
+      $date_stop = ($scheduler['sched_stop'] == 1 && $scheduler['sched_stop_date']) ? $scheduler['sched_stop_date'] : time();
     
       // convert to something date.module element understands
       $date_str_start = gmstrftime("%Y-%m-%d %H:%M:00", $date_start+$user->timezone);
@@ -127,7 +127,7 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
         '#options'       => array(t('Never'), t('On a given date'), t('After a maximum number of editions')),
         '#attributes'    => array('class' => 'simplenews-command-stop'),
       );
-    
+
       $form['simplenews']['schedule']['sched_stop_date'] = array(
         '#type'            => 'date_select',
         '#default_value'   => $date_str_stop,
@@ -219,13 +219,10 @@ function simplenews_scheduler_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
 /**
  * Implementation of hook_cron().
  *
- * essentially we are just checking against a status table and recreating nodes to be sent
+ * Essentially we are just checking against a status table and recreating nodes to be sent.
  *
  * @todo: sometimes a month is not 30 days, we need to handle this better
  *        maybe we can see how many seconds(days) long the current month cycle is?
- *
- *        run until max no. of editions
- *        dont run unless X or more nodes in selectable views
  *
  */
 function simplenews_scheduler_cron() {
@@ -238,10 +235,16 @@ function simplenews_scheduler_cron() {
     $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE %d - last_run > %d AND `sched_interval` = '%s' AND %d < sched_stop_date", $now_time, $seconds, $interval, $now_time);
     while ($row = db_fetch_array($result) ) {
       // if returns with null don't do anything
+      $first_run = intval($row['sched_start']);
+      // because the scheduler runs according to last_run timestamp and the cron
+      // does not run exactly at the scheduled timestamp, this correction fixes
+      // this run's timestamp ($now_time) to the right time by adding a correct interval.
+      $this_run = $first_run + floor( ($now_time - $first_run) / $seconds ) * $seconds;
+      // create a new edition
       $nid = simplenews_scheduler_new_edition($row["snid"]);
       if (isset($nid)) {
-        db_query("UPDATE {simplenews_scheduler} SET last_run = %d WHERE sid = %d", gmmktime(), $row["sid"]);
-        db_query("INSERT INTO {simplenews_scheduler_editions} (snid, edition_snid, date_issued) VALUES (%d, %d, %d)", $row["snid"], $nid, gmmktime());
+        db_query("UPDATE {simplenews_scheduler} SET last_run = %d WHERE sid = %d", $this_run, $row["sid"]);
+        db_query("INSERT INTO {simplenews_scheduler_editions} (snid, edition_snid, date_issued) VALUES (%d, %d, %d)", $row["snid"], $nid, $now_time);
         $node = node_load($nid);
         simplenews_send_node($node);
       }
