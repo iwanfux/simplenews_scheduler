@@ -279,12 +279,12 @@ function simplenews_scheduler_new_edition($sched_nid) {
   $node->send = 1;
   
   // check upon if sending should stop with a given edition number and
-  $result = db_fetch_array(db_query("SELECT sched_stop, sched_stop_edition FROM {simplenews_scheduler} WHERE sid = %d", $sched_nid));
+  $result = db_fetch_array(db_query("SELECT sched_stop, sched_stop_edition FROM {simplenews_scheduler} WHERE snid = %d", $sched_nid));
   $sched_stop = $result['sched_stop'];
   $sched_stop_edition = $result['sched_stop_edition'];
   
   // don't create new edition if the edition number exceeds the given maximum value
-  if (($sched_stop == 2 && $edition_no < $sched_stop_edition) || $sched_stop != 2) {
+  if (($sched_stop == 2 && $edition_no <= $sched_stop_edition) || $sched_stop != 2) {
     // mark as new with removeing node id
     unset($node->nid);
     // now save it as a new node
