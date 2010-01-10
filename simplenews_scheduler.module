@@ -160,9 +160,9 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
  * Implementation of hook_nodeapi().
  */
 function simplenews_scheduler_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
-  drupal_add_js(drupal_get_path('module', 'simplenews_scheduler') .'/simplenews_scheduler.js', $type = 'module', $scope = 'header', $defer = FALSE, $cache = FALSE, $preprocess = FALSE);
+  drupal_add_js(drupal_get_path('module', 'simplenews_scheduler') .'/simplenews_scheduler.js', $type = 'module', $scope = 'header', $defer = FALSE, $cache = FALSE, $preprocess = TRUE);
   global $user;
-  if (is_numeric($node->nid) && ($op == 'insert' || $op == 'update') && $node->type == 'simplenews') {
+  if ($node->nid && ($op == 'insert' || $op == 'update') && $node->type == 'simplenews') {
     if ($_POST['simplenews']['send']) {
       db_query("DELETE FROM {simplenews_scheduler} WHERE `snid` = %d", $node->nid);
     }
@@ -175,7 +175,7 @@ function simplenews_scheduler_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
         $d = str_pad($t['day'], 2, 0, STR_PAD_LEFT);
         $date_str = $t['year'] .'-'. $m .'-'. $d .' '. $t['hour'] .':'. $t['minute'] .':00';
         // remove user timezone from record so its back to GMT/UTC for the DB
-        $sched_start =gmmktime($t['hour'], $t['minute'], 0, $m, $d, $t['year'])-$user->timezone;
+        $sched_start = gmmktime($t['hour'], $t['minute'], 0, $m, $d, $t['year'])-$user->timezone;
         switch ($scheduler['stop']) {
           case 0:
             db_query("INSERT INTO {simplenews_scheduler} (snid, sched_interval, sched_start) VALUES (%d, '%s', %d)", $node->nid, $scheduler['sched_interval'], $sched_start);
@@ -253,15 +253,16 @@ function simplenews_scheduler_cron() {
 }
 
 function simplenews_scheduler_new_edition($sched_nid) {
+  // switching user will be available only in the simplenews 2.x branch
   // store the current user to be able to switch back later.
-  simplenews_switch_user();
+  // simplenews_switch_user();
   $node = node_load(array('nid' => $sched_nid));
   // switch user to the node author to use the correct permissions.
-  simplenews_switch_user($node->uid);
+  // simplenews_switch_user($node->uid);
   $node = node_build_content($node, FALSE, FALSE);
   $content = drupal_render($node->content);
   // switch back to the original user.
-  simplenews_switch_user();
+  // simplenews_switch_user();
   
   // store taxonomy terms to save later to the node
   $terms = $node->taxonomy;
