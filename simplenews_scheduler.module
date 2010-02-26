@@ -57,17 +57,20 @@ function simplenews_scheduler_menu() {
   return $items;
 }
 
-
 /**
  * Implementation of hook_form_alter().
  */
 function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
   global $user;
   if ($form_id == 'simplenews_node_form') {
+    $simplenews = $form['#node']->simplenews;
+    $schedule = $form['#node']->simplenews['schedule'];
     $scheduler = $form['#node']->simplenews_scheduler;
     $edition = $form['#node']->simplenews_scheduler_edition;
     
     $form['simplenews']['send']['#options'][SIMPLENEWS_COMMAND_SEND_SCHEDULE]= t('Send newsletter according to schedule');
+    $form['simplenews']['send']['#default_value'] = ($simplenews['send']) ? $simplenews['send'] : 0;
+    
     $form['simplenews']['schedule'] = array(
       '#type'        => 'fieldset',      
       '#title'       => t('Schedule details'),
@@ -76,10 +79,8 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
       '#collapsible' => TRUE,
       '#collapsed'   => TRUE,
     );
+    
     if (!isset($edition)) {
-      if (is_array($scheduler) ) {
-        $form['simplenews']['send']['#default_value']=sizeof($form['simplenews']['send']['#options'])-1;
-      }
       $form['simplenews']['schedule']['sched_interval'] = array(
         '#type'    => 'select',
         '#title'   => t('Send once per'),
@@ -89,17 +90,12 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
           'month'  => t('Month')
         ),
         '#description' => t('Interval to send at'),
+        '#default_value' => ($schedule['sched_interval']) ? $schedule['sched_interval'] : (($scheduler) ? $scheduler['sched_interval'] : 1),
       );
-
-      if ($scheduler) {
-        if ($scheduler['sched_interval']) {
-          $form['simplenews']['schedule']['sched_interval']['#default_value'] = $scheduler['sched_interval'];
-        }
-      }
-    
+      
       // surely theres a better way get to $date
-      $date_start = ($scheduler['sched_start']) ? $scheduler['sched_start'] : time();
-      $date_stop = ($scheduler['sched_stop'] == 1 && $scheduler['sched_stop_date']) ? $scheduler['sched_stop_date'] : time();
+      $date_start = ($schedule['sched_start']) ? strtotime($schedule['sched_start']) : (($scheduler['sched_start']) ? $scheduler['sched_start'] : time());
+      $date_stop = ($schedule['sched_stop_date']) ? strtotime($schedule['sched_stop_date']) : (($scheduler['sched_stop'] == 1 && $scheduler['sched_stop_date']) ? $scheduler['sched_stop_date'] : time());
     
       // convert to something date.module element understands
       $date_str_start = gmstrftime("%Y-%m-%d %H:%M:00", $date_start+$user->timezone);
@@ -114,16 +110,16 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
         '#date_label_position' => 'none',
         '#date_increment'  => 1,
         '#date_year_range' => '0:+3',
-      	'#required'        => TRUE,
+        '#required'        => TRUE,
         '#description'     => t('Intervals work by creating a new node at the desired time and marking this to be sent, 
                                  ensure you have your <a href="@site">site timezones</a> configured and <a href="@user">user timezone</a> configured.', 
                                  array('@site' => url('admin/settings/date-time'), '@user' => url('user/'. $user->uid .'/edit'))),
       );
-            
+      
       $form['simplenews']['schedule']['stop'] = array(
         '#type'          => 'radios',
         '#title'         => t('Stop sending'),
-        '#default_value' => ($scheduler['sched_stop'])? $scheduler['sched_stop'] : 0,
+        '#default_value' => ($schedule['stop']) ? $schedule['stop'] : (($scheduler['sched_stop']) ? $scheduler['sched_stop'] : 0),
         '#options'       => array(t('Never'), t('On a given date'), t('After a maximum number of editions')),
         '#attributes'    => array('class' => 'simplenews-command-stop'),
       );
@@ -141,7 +137,7 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
       
       $form['simplenews']['schedule']['sched_stop_edition'] = array(
         '#type'          => 'textfield',
-        '#default_value' => ($scheduler['sched_stop_edition'])? $scheduler['sched_stop_edition'] : 0,
+        '#default_value' => ($schedule['sched_stop_edition']) ? $schedule['sched_stop_edition'] : (($scheduler['sched_stop_edition']) ? $scheduler['sched_stop_edition'] : 0),
         '#size'          => 5,
         '#maxlength'     => 5,
         '#required'      => TRUE,
@@ -252,6 +248,9 @@ function simplenews_scheduler_cron() {
   }
 }
 
+/**
+ * Creates a new newsletter edition.
+ */
 function simplenews_scheduler_new_edition($sched_nid) {
   // switching user will be available only in the simplenews 2.x branch
   // store the current user to be able to switch back later.
@@ -301,12 +300,18 @@ function simplenews_scheduler_new_edition($sched_nid) {
   } 
 }
 
+/**
+ * Returns the edition number of the newsletter.
+ */
 function simplenews_scheduler_get_edition_number($sched_nid) {
   $result = db_fetch_array(db_query("SELECT COUNT(*) as c from {simplenews_scheduler_editions} where snid = %d", $sched_nid));
   return $result['c'];
 }
 
-function simplenews_scheduler_node_page( $nid ) {
+/**
+ * Menu callback to provide a page with the scheduled newsletters.
+ */
+function simplenews_scheduler_node_page($nid) {
   drupal_set_title(t('Scheduled Newsletter Editions'));
   $output .= "<div>";
   $result = pager_query("SELECT * FROM {simplenews_scheduler_editions} s LEFT JOIN {node} n ON n.nid = s.snid WHERE s.snid = %d", 20, 0, NULL, $nid);
@@ -339,6 +344,9 @@ function simplenews_scheduler_node_page( $nid ) {
   return $output;
 }
 
+/**
+ * Theme the title of the newsletter edition.
+ */
 function theme_simplenews_scheduler_title($node_title, $edition_number) {
   return $node_title ." ". t('(edition !edition)', array('!edition' => $edition_number));
 }
