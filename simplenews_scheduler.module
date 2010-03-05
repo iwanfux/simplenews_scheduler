@@ -63,13 +63,12 @@ function simplenews_scheduler_menu() {
 function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
   global $user;
   if ($form_id == 'simplenews_node_form') {
-    $simplenews = $form['#node']->simplenews;
-    $schedule = $form['#node']->simplenews['schedule'];
+    // @todo Clean up the default values.
+    $simplenews = $form['#node']->simplenews['schedule'];
     $scheduler = $form['#node']->simplenews_scheduler;
     $edition = $form['#node']->simplenews_scheduler_edition;
     
     $form['simplenews']['send']['#options'][SIMPLENEWS_COMMAND_SEND_SCHEDULE]= t('Send newsletter according to schedule');
-    $form['simplenews']['send']['#default_value'] = ($simplenews['send']) ? $simplenews['send'] : 0;
     
     $form['simplenews']['schedule'] = array(
       '#type'        => 'fieldset',      
@@ -90,12 +89,12 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
           'month'  => t('Month')
         ),
         '#description' => t('Interval to send at'),
-        '#default_value' => ($schedule['sched_interval']) ? $schedule['sched_interval'] : (($scheduler) ? $scheduler['sched_interval'] : 1),
+        '#default_value' => ($simplenews['sched_interval']) ? $simplenews['sched_interval'] : (($scheduler) ? $scheduler['sched_interval'] : 1),
       );
       
       // surely theres a better way get to $date
-      $date_start = ($schedule['sched_start']) ? strtotime($schedule['sched_start']) : (($scheduler['sched_start']) ? $scheduler['sched_start'] : time());
-      $date_stop = ($schedule['sched_stop_date']) ? strtotime($schedule['sched_stop_date']) : (($scheduler['sched_stop'] == 1 && $scheduler['sched_stop_date']) ? $scheduler['sched_stop_date'] : time());
+      $date_start = ($simplenews['sched_start']) ? $simplenews['sched_start'] : (($scheduler['sched_start']) ? $scheduler['sched_start'] : time());
+      $date_stop = ($simplenews['sched_stop_date']) ? $simplenews['sched_stop_date'] : (($scheduler['sched_stop'] == 1 && $scheduler['sched_stop_date']) ? $scheduler['sched_stop_date'] : time());
     
       // convert to something date.module element understands
       $date_str_start = gmstrftime("%Y-%m-%d %H:%M:00", $date_start+$user->timezone);
@@ -104,7 +103,7 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
       $form['simplenews']['schedule']['sched_start'] = array(
         '#type'            => 'date_select',
         '#title'           => t('Start sending on'),
-        '#default_value'   => $date_str_start,
+        '#default_value'   => ($simplenews['sched_start']) ? $date_start : $date_str_start,
         '#date_type'       => DATE_DATETIME,
         '#date_format'     => 'm-d-Y - H:i',
         '#date_label_position' => 'none',
@@ -119,14 +118,14 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
       $form['simplenews']['schedule']['stop'] = array(
         '#type'          => 'radios',
         '#title'         => t('Stop sending'),
-        '#default_value' => ($schedule['stop']) ? $schedule['stop'] : (($scheduler['sched_stop']) ? $scheduler['sched_stop'] : 0),
+        '#default_value' => ($simplenews['stop']) ? $simplenews['stop'] : (($scheduler['sched_stop']) ? $scheduler['sched_stop'] : 0),
         '#options'       => array(t('Never'), t('On a given date'), t('After a maximum number of editions')),
         '#attributes'    => array('class' => 'simplenews-command-stop'),
       );
 
       $form['simplenews']['schedule']['sched_stop_date'] = array(
         '#type'            => 'date_select',
-        '#default_value'   => $date_str_stop,
+        '#default_value'   => ($simplenews['sched_stop_date']) ? $date_stop : $date_str_stop,
         '#date_type'       => DATE_DATETIME,
         '#date_format'     => 'm-d-Y - H:i',
         '#date_label_position' => 'none',
@@ -137,7 +136,7 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
       
       $form['simplenews']['schedule']['sched_stop_edition'] = array(
         '#type'          => 'textfield',
-        '#default_value' => ($schedule['sched_stop_edition']) ? $schedule['sched_stop_edition'] : (($scheduler['sched_stop_edition']) ? $scheduler['sched_stop_edition'] : 0),
+        '#default_value' => ($simplenews['sched_stop_edition']) ? $simplenews['sched_stop_edition'] : (($scheduler['sched_stop_edition']) ? $scheduler['sched_stop_edition'] : 0),
         '#size'          => 5,
         '#maxlength'     => 5,
         '#required'      => TRUE,
