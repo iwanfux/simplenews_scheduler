@@ -19,24 +19,70 @@ function simplenews_scheduler_install() {
 function simplenews_scheduler_schema() {
   $schema['simplenews_scheduler'] = array(
     'fields' => array(
-      'sid'                => array('type' => 'int', 'length' => 10, 'auto_increment' => TRUE, 'not null' => TRUE),
-      'snid'               => array('type' => 'int', 'length' => 10, 'not null' => TRUE, 'default' => 0),
-      'run_count'          => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
-      'run_limit'          => array('type' => 'int', 'not null' => TRUE),
-      'last_run'           => array('type' => 'int', 'length' => 14, 'not null' => TRUE, 'default' => 0),
-      'sched_interval'     => array('type' => 'varchar', 'length' => 10),
-      'sched_start'        => array('type' => 'int', 'length' => 11, 'not null' => TRUE),
-      'sched_stop'         => array('type' => 'int', 'length' => 1, 'not null' => TRUE),
-      'sched_stop_date'    => array('type' => 'int', 'length' => 11, 'not null' => TRUE, 'default' => 1577923199), // Default stop date is Wednesday, January 1st 2020, 23:59:59
-      'sched_stop_edition' => array('type' => 'int', 'length' => 10, 'not null' => TRUE, 'default' => 0)
+      'sid' => array(
+        'type' => 'int', 
+        'length' => 10, 
+        'auto_increment' => TRUE, 
+        'not null' => TRUE),
+      'snid' => array(
+        'type' => 'int',
+        'length' => 10,
+        'not null' => TRUE,
+        'default' => 0),
+      'run_count' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0),
+      'run_limit' => array(
+        'type' => 'int',
+        'not null' => TRUE),
+      'last_run' => array(
+        'type' => 'int',
+        'length' => 14,
+        'not null' => TRUE,
+        'default' => 0),
+      'interval' => array(
+        'type' => 'varchar',
+        'length' => 10),
+      'start_date' => array(
+        'type' => 'int',
+        'length' => 11,
+        'not null' => TRUE),
+      'stop' => array(
+        'type' => 'int',
+        'length' => 1,
+        'not null' => TRUE),
+      'stop_date' => array(
+        'type' => 'int',
+        'length' => 11,
+        'not null' => TRUE,
+        'default' => 1388447999), // Default is Mon, 31 Dec 2013 23:59:59 GMT
+      'stop_edition' => array(
+        'type' => 'int',
+        'length' => 10,
+        'not null' => TRUE,
+        'default' => 0)
     ),
     'primary key' => array('sid'),
   );
+
   $schema['simplenews_scheduler_editions'] = array(
     'fields' => array(
-      'edition_snid' => array('type' => 'int', 'length' => 10, 'not null' => TRUE, 'default' => 0),
-      'snid'         => array('type' => 'int', 'length' => 10, 'not null' => TRUE, 'default' => 0),
-      'date_issued'  => array('type' => 'int', 'length' => 11, 'not null' => TRUE, 'default' => 0)
+      'edition_snid' => array(
+        'type' => 'int',
+        'length' => 10,
+        'not null' => TRUE,
+        'default' => 0),
+      'snid' => array(
+        'type' => 'int',
+        'length' => 10,
+        'not null' => TRUE,
+        'default' => 0),
+      'date_issued' => array(
+        'type' => 'int',
+        'length' => 11,
+        'not null' => TRUE,
+        'default' => 0)
     )
   );
   return $schema;
@@ -55,8 +101,8 @@ function simplenews_scheduler_uninstall() {
  */
 function simplenews_scheduler_update_6000() {
   $ret = array();
-  db_add_field($ret, 'simplenews_scheduler', 'sched_stop', array('type' => 'int', 'length' => 1, 'not null' => TRUE));
-  db_add_field($ret, 'simplenews_scheduler', 'sched_stop_date', array('type' => 'int', 'length' => 11, 'not null' => TRUE, 'default' => 1577923199));
-  db_add_field($ret, 'simplenews_scheduler', 'sched_stop_edition', array('type' => 'int', 'length' => 10, 'not null' => TRUE, 'default' => 0));
+  db_add_field($ret, 'simplenews_scheduler', 'stop', array('type' => 'int', 'length' => 1, 'not null' => TRUE));
+  db_add_field($ret, 'simplenews_scheduler', 'stop_date', array('type' => 'int', 'length' => 11, 'not null' => TRUE, 'default' => 1577923199));
+  db_add_field($ret, 'simplenews_scheduler', 'stop_edition', array('type' => 'int', 'length' => 10, 'not null' => TRUE, 'default' => 0));
   return $ret;
 }

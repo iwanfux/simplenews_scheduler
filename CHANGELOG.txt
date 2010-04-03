@@ -1,5 +1,15 @@
 // $Id$ 
 
+Simplenews Scheduler 6.x-1.x-dev, 2010-04-03
+--------------------------------------------
+- Major changes according to Date 2 API.
+- Additional code cleanup.
+- Added scheduled newsletter overview page.
+- Fixed a variety of bugs:
+    * #713414 by sgabe: Settings are reset on node preview.
+    * #728994 by sgabe: Newsletter sent immediately as created.
+    * #738318 by sgabe: Attachments are lost in new editions.
+
 Simplenews Scheduler 6.x-1.x-dev, 2009-10-27
 --------------------------------------------
 - Fixed illegal choice detected bug.

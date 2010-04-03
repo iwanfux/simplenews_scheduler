@@ -17,7 +17,7 @@ Drupal.behaviors.simplenewsScheduler = function (context) {
     }
   }
   
-   // Update scheduler info's display at page load and when a send option is selected.
+  // Update scheduler info's display at page load and when a send option is selected.
   $(function() { simplenewsScheduler(); });
   $(".simplenews-command-send").click( function() { simplenewsScheduler(); });
 }
@@ -28,18 +28,18 @@ Drupal.behaviors.simplenewsScheduler = function (context) {
 Drupal.behaviors.simplenewsSchedulerStop = function (context) {
   var simplenewsSchedulerStop = function () {
     if($(".simplenews-command-stop :radio:checked").val() == '1') {
-        $('#edit-simplenews-schedule-sched-stop-date-wrapper').css({display: "block"});
+        $('#edit-simplenews-scheduler-stop-date-wrapper').css({display: "block"});
     } else {
-    	$('#edit-simplenews-schedule-sched-stop-date-wrapper').css({display: "none"});
+    	$('#edit-simplenews-scheduler-stop-date-wrapper').css({display: "none"});
     }
     if($(".simplenews-command-stop :radio:checked").val() == '2') {
-        $('#edit-simplenews-schedule-sched-stop-edition-wrapper').css({display: "block"});
+        $('#edit-simplenews-scheduler-stop-edition-wrapper').css({display: "block"});
     } else {
-    	$('#edit-simplenews-schedule-sched-stop-edition-wrapper').css({display: "none"});
+    	$('#edit-simplenews-scheduler-stop-edition-wrapper').css({display: "none"});
     }
   }
   
-   // Update scheduler info's display at page load and when a stop option is selected.
+  // Update scheduler info's display at page load and when a stop option is selected.
   $(function() { simplenewsSchedulerStop(); });
   $(".simplenews-command-stop").click( function() { simplenewsSchedulerStop(); });
 }
