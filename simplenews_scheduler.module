@@ -146,8 +146,8 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
         '#required'      => TRUE,
         '#description'   => t('The maximum number of editions which should be sent.'),
       );
-    } 
-    else { 
+    }
+    else {
       // This is a newsletter edition.
       $title .= t('This node is part of a scheduled newsletter configuration. View the original newsletter <a href="@parent">here</a>.', array('@parent' => url('node/'. $edition['snid'])));
       $form['simplenews']['none']['#title'] = $title;
@@ -367,7 +367,7 @@ function _simplenews_scheduler_get_snid($node) {
   // This is a newsletter edition,
   if ($node->simplenews_scheduler_edition) {
     $snid = $node->simplenews_scheduler_edition['snid'];
-  } 
+  }
   // or this is the parent newsletter.
   elseif ($node->simplenews_scheduler) {
     $snid = $node->nid;
