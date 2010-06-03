@@ -62,7 +62,9 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
     else {
       $scheduler = $form['#node']->simplenews_scheduler;
     }
+    $form['simplenews']['send']['#options'][SIMPLENEWS_COMMAND_SEND_NONE] = t("Don't send now or stop sending");
     $form['simplenews']['send']['#options'][SIMPLENEWS_COMMAND_SEND_SCHEDULE]= t('Send newsletter according to schedule');
+    $form['simplenews']['send']['#default_value'] = ($scheduler['activated'] == 1) ? SIMPLENEWS_COMMAND_SEND_SCHEDULE : variable_get('simplenews_send', SIMPLENEWS_COMMAND_SEND_NONE);
     $form['simplenews']['scheduler'] = array(
       '#type'        => 'fieldset',
       '#title'       => t('Schedule details'),
@@ -146,10 +148,14 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
         '#required'      => TRUE,
         '#description'   => t('The maximum number of editions which should be sent.'),
       );
+      $form['simplenews']['scheduler']['activated'] = array(
+        '#type' => 'hidden',
+        '#value' => $scheduler['activated'],
+      );
     }
     else {
       // This is a newsletter edition.
-      $title .= t('This node is part of a scheduled newsletter configuration. View the original newsletter <a href="@parent">here</a>.', array('@parent' => url('node/'. $edition['snid'])));
+      $title .= t('This node is part of a scheduled newsletter configuration. View the original newsletter <a href="@parent">here</a>.', array('@parent' => url('node/'. $form['#node']->simplenews_scheduler_edition['pid'])));
       $form['simplenews']['none']['#title'] = $title;
       // If the node has attachments
       if (count($form['attachments']['wrapper']['files']) && user_access('upload files')) {
@@ -176,39 +182,54 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
  * Implementation of hook_nodeapi().
  */
 function simplenews_scheduler_nodeapi(&$node, $op) {
-  switch ($op) {
-    case 'insert':
-    case 'update':
-      if ($node->nid && $node->type == 'simplenews') {
-        $simplenews = $node->simplenews;
-        if ($simplenews['send'] == 0) {
-          db_query("DELETE FROM {simplenews_scheduler} WHERE snid = %d", $node->nid);
+  if ($node->nid && $node->type == 'simplenews') {
+    // Get Scheduler values from Simplenews.
+    $send         = $node->simplenews['send'];
+    $activated    = $node->simplenews['activated'];
+    $interval     = $node->simplenews['interval'];
+    $start_date   = $node->simplenews['start_date'];
+    $stop         = $node->simplenews['stop'];
+    $stop_date    = $node->simplenews['stop_date'];
+    $stop_edition = $node->simplenews['stop_edition'];
+    // Change activation status if necessary.
+    switch ($send) {
+      case 0:
+      case 1:
+        $activated = 0;
+        break;
+      case 3:
+        $activated = 1;
+        break;
+    }
+    // Convert the user time back to GMT time and use that as our record.
+    $start_date = date_convert($start_date, DATE_DATETIME, DATE_UNIX, date_default_timezone_name());
+    $stop_date = date_convert($stop_date, DATE_DATETIME, DATE_UNIX, date_default_timezone_name());
+    switch ($op) {
+      case 'insert':
+      case 'update':
+        $result = db_query("INSERT INTO {simplenews_scheduler} (nid, activated, `interval`, start_date, stop, stop_date, stop_edition) VALUES (%d, %d, '%s', %d, %d, %d, %d) 
+                            ON DUPLICATE KEY UPDATE last_run = 0, activated = %d, `interval` = '%s', start_date = %d, stop = %d, stop_date = %d, stop_edition = %d",
+                            $node->nid, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $node->nid);
+        if (!$result) {
+          drupal_set_message(t('Saving or updating schedule settings for <em>@title</em> has been unsuccessful.', array('@title' =>  $node->title)), 'error');
         }
-        elseif ($simplenews['send'] == 3) {
-          // Convert the user time back to GMT time and use that as our record.
-          $start_date = date_convert($simplenews['start_date'], DATE_DATETIME, DATE_UNIX, date_default_timezone_name());
-          $stop_date = date_convert($simplenews['stop_date'], DATE_DATETIME, DATE_UNIX, date_default_timezone_name());
-          db_query("INSERT INTO {simplenews_scheduler} (snid, `interval`, start_date, stop, stop_edition) VALUES (%d, '%s', %d, %d, %d)", $node->nid, $simplenews['interval'], $start_date, $simplenews['stop'], $simplenews['stop_edition']);
-        }
-      }
-      break;
-    case 'load':
-      if ($node->type == 'simplenews') {
-        $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE snid = %d", $node->nid);
+        break;
+      case 'load':
+        $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE nid = %d", $node->nid);
         $row = db_fetch_array($result);
         if ($row) {
           $node->simplenews_scheduler = $row;
         }
         else {
           // Maybe this was an edition that has been sent?
-          $result = db_query("SELECT * FROM {simplenews_scheduler_editions} WHERE edition_snid = %d", $node->nid);
+          $result = db_query("SELECT * FROM {simplenews_scheduler_editions} WHERE eid = %d", $node->nid);
           $row = db_fetch_array($result);
           if ($row) {
             $node->simplenews_scheduler_edition = $row;
           }
         }
-      }
-      break;
+        break;
+    }
   }
 }
 
@@ -227,8 +248,9 @@ function simplenews_scheduler_cron() {
   foreach ($intervals as $interval => $seconds) {
     // Check daily items that need to be sent.
     $now_time = gmmktime();
-    $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE %d - last_run > %d AND `interval` = '%s' AND start_date <= %d AND %d < stop_date", $now_time, $seconds, $interval, $now_time, $now_time);
-    while ($row = db_fetch_array($result) ) {
+    $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE activated = 1 AND %d - last_run > %d AND `interval` = '%s' AND start_date <= %d AND %d < stop_date", $now_time, $seconds, $interval, $now_time, $now_time);
+    while ($row = db_fetch_array($result)) {
+      $pid = $row["nid"];
       // If returns with null don't do anything.
       $first_run = intval($row['start_date']);
       // Because the scheduler runs according to last_run timestamp and the cron
@@ -236,11 +258,11 @@ function simplenews_scheduler_cron() {
       // this run's timestamp ($now_time) to the right time by adding a correct interval.
       $this_run = $first_run + floor(($now_time - $first_run) / $seconds) * $seconds;
       // Create a new edition.
-      $nid = _simplenews_scheduler_new_edition($row["snid"]);
-      if (isset($nid)) {
-        db_query("UPDATE {simplenews_scheduler} SET last_run = %d WHERE sid = %d", $this_run, $row["sid"]);
-        db_query("INSERT INTO {simplenews_scheduler_editions} (snid, edition_snid, date_issued) VALUES (%d, %d, %d)", $row["snid"], $nid, $now_time);
-        $node = node_load($nid);
+      $eid = _simplenews_scheduler_new_edition($row["nid"]);
+      if (isset($eid)) {
+        db_query("UPDATE {simplenews_scheduler} SET last_run = %d WHERE nid = %d", $this_run, $pid);
+        db_query("INSERT INTO {simplenews_scheduler_editions} (eid, pid, date_issued) VALUES (%d, %d, %d)", $eid, $pid, $now_time);
+        $node = node_load($eid);
         // Send the newsletter edition.
         simplenews_send_node($node);
       }
@@ -253,22 +275,22 @@ function simplenews_scheduler_cron() {
  */
 function simplenews_scheduler_node_page($node) {
   drupal_set_title(t('Scheduled newsletter editions'));
-  $snid = _simplenews_scheduler_get_snid($node);
+  $nid = _simplenews_scheduler_get_pid($node);
   // This is the original newsletter.
-  if ($snid == $node->nid) {
+  if ($nid == $node->nid) {
     $output .= '<p>'. t('This is the original newsletter of which all editions are based on.') .'</p>';
   }
   // This is a newsletter edition.
   else {
-    $output .= '<p>'. t('This node is part of a scheduled newsletter configuration. View the original newsletter <a href="@parent">here</a>.', array('@parent' => url('node/'. $snid))) .'</p>';
+    $output .= '<p>'. t('This node is part of a scheduled newsletter configuration. View the original newsletter <a href="@parent">here</a>.', array('@parent' => url('node/'. $nid))) .'</p>';
   }
   // Load the corresponding editions from the database to further process.
-  $result = pager_query("SELECT * FROM {simplenews_scheduler_editions} s LEFT JOIN {node} n ON n.nid = s.snid WHERE s.snid = %d", 20, 0, NULL, $snid);
+  $result = pager_query("SELECT * FROM {simplenews_scheduler_editions} sse LEFT JOIN {node} n ON n.nid = sse.pid WHERE sse.pid = %d", 20, 0, NULL, $nid);
   while ($row = db_fetch_object($result)) {
-    $node = node_load($row->edition_snid);
+    $node = node_load($row->eid);
     $rows[] = array(
       format_date($row->date_issued, 'custom', 'Y-m-d H:i'),
-      l($node->title, 'node/'. $row->edition_snid)
+      l($node->title, 'node/'. $row->eid)
     );
   }
   // Display a table with all editions.
@@ -293,10 +315,10 @@ function theme_simplenews_scheduler_title($title, $serial) {
  * Check whether to display the Scheduled Newsletter tab.
  */
 function _simplenews_scheduler_tab_permission($node) {
-  $snid = _simplenews_scheduler_get_snid($node);
+  $pid = _simplenews_scheduler_get_pid($node);
   if ($node->type == 'simplenews' && 
       user_access('overview scheduled newsletters') &&
-      _simplenews_scheduler_count_editions($snid)) {
+      _simplenews_scheduler_count_editions($pid)) {
     return TRUE;
   }
   else {
@@ -307,8 +329,8 @@ function _simplenews_scheduler_tab_permission($node) {
 /**
  * Create a new newsletter edition.
  */
-function _simplenews_scheduler_new_edition($snid) {
-  $node = node_load($snid);
+function _simplenews_scheduler_new_edition($nid) {
+  $node = node_load($nid);
   if (module_exists('upload')) {
     $files = upload_load($node);
   }
@@ -317,7 +339,7 @@ function _simplenews_scheduler_new_edition($snid) {
   // Store taxonomy terms to save later to the node.
   $terms = $node->taxonomy;
   // Append title.
-  $serial = _simplenews_scheduler_count_editions($snid)+1;
+  $serial = _simplenews_scheduler_count_editions($nid)+1;
   $node->title = theme('simplenews_scheduler_title', $node->title, $serial);
   // Output format for all newly created items should just be Full HTML, incase of Views output etc.
   if ($format_id = db_result(db_query('SELECT format FROM {filter_formats} WHERE name like "full html"')) ) {
@@ -326,13 +348,13 @@ function _simplenews_scheduler_new_edition($snid) {
   // Trigger it for sending.
   $node->send = 1;
   // Check upon if sending should stop with a given edition number.
-  $result = db_fetch_array(db_query("SELECT stop, stop_edition FROM {simplenews_scheduler} WHERE snid = %d", $snid));
+  $result = db_fetch_array(db_query("SELECT stop, stop_edition FROM {simplenews_scheduler} WHERE nid = %d", $nid));
   $stop = $result['stop'];
   $stop_edition = $result['stop_edition'];
   // Don't create new edition if the edition number exceeds the given maximum value.
   if (($stop == 2 && $serial <= $stop_edition) || $stop != 2) {
-    // Mark as new with removeing node ID.
-    unset($node->nid);
+    // Mark as new with removeing node ID and creation date.
+    unset($node->nid, $node->created);
     // Now save it as a new node.
     node_save($node);
     // Save taxonomy terms.
@@ -347,7 +369,7 @@ function _simplenews_scheduler_new_edition($snid) {
       }
     }
     // Prepare the correct status for Simplenews to pickup.
-    db_query("UPDATE {simplenews_newsletters} SET s_status=1 WHERE vid=%d", $node->vid);
+    db_query("UPDATE {simplenews_newsletters} SET s_status=1 WHERE nid=%d", $node->nid);
     // We have to call simplenews_nodeapi() directly as we wont have a new node ID before we save.
     simplenews_nodeapi($node, 'update', $teaser = NULL, $page = NULL);
     return $node->nid;
@@ -357,22 +379,23 @@ function _simplenews_scheduler_new_edition($snid) {
 /**
  * Returns the last edition number of the scheduled newsletter.
  */
-function _simplenews_scheduler_count_editions($snid) {
-  $result = db_result(db_query("SELECT COUNT(*) as c from {simplenews_scheduler_editions} where snid = %d", $snid));
+function _simplenews_scheduler_count_editions($nid) {
+  $result = db_result(db_query("SELECT COUNT(*) as c from {simplenews_scheduler_editions} where pid = %d", $nid));
   return $result;
 }
 
 /**
  * Helper fucntion to get the identifier of newsletter.
  */
-function _simplenews_scheduler_get_snid($node) {
-  // This is a newsletter edition,
+function _simplenews_scheduler_get_pid($node) {
+  // First assume this is a newsletter edition,
   if ($node->simplenews_scheduler_edition) {
-    $snid = $node->simplenews_scheduler_edition['snid'];
+    $nid = $node->simplenews_scheduler_edition['pid'];
   }
-  // or this is the parent newsletter.
+  // or this itself is the parent newsletter.
   elseif ($node->simplenews_scheduler) {
-    $snid = $node->nid;
+    $nid = $node->nid;
   }
-  return $snid;
+
+  return $nid;
 }

@@ -1,5 +1,11 @@
 // $Id$ 
 
+Simplenews Scheduler 6.x-1.x-dev, 2010-06-03
+--------------------------------------------
+- Fixed #796160 by sgabe, sfyn, dispa: Settings not saved, multiple sends of newsletter
+- Added #764122 by sgabe, catofcheshir: How to find scheduled issue?
+- Additional minor bug fixes.
+
 Simplenews Scheduler 6.x-1.x-dev, 2010-04-03
 --------------------------------------------
 - Major changes according to Date 2 API.

@@ -23,7 +23,7 @@ Drupal.behaviors.simplenewsScheduler = function (context) {
 }
 
 /**
- * Set scheduler info's display attribute to hide and show based on the stop option value.
+ * Set scheduler info's display attribute to hide and show dependent on the selected stop option.
  */
 Drupal.behaviors.simplenewsSchedulerStop = function (context) {
   var simplenewsSchedulerStop = function () {
@@ -42,4 +42,21 @@ Drupal.behaviors.simplenewsSchedulerStop = function (context) {
   // Update scheduler info's display at page load and when a stop option is selected.
   $(function() { simplenewsSchedulerStop(); });
   $(".simplenews-command-stop").click( function() { simplenewsSchedulerStop(); });
+}
+
+/**
+ * Set text of Save button dependent if scheduled sending is selected.
+ */
+Drupal.behaviors.simplenewsSchedulerCommandSend = function (context) {
+  var simplenewsSchedulerSendButton = function () {
+    switch ($(".simplenews-command-send :radio:checked").val()) {
+      case '3':
+        $('#edit-submit').attr({value: Drupal.t('Save and send as scheduled')});
+        break;
+    }
+  }
+  
+  // Update send button at page load and when a send option is selected.
+  $(function() { simplenewsSchedulerSendButton(); });
+  $(".simplenews-command-send").click( function() { simplenewsSchedulerSendButton(); });
 }

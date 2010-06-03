@@ -19,12 +19,7 @@ function simplenews_scheduler_install() {
 function simplenews_scheduler_schema() {
   $schema['simplenews_scheduler'] = array(
     'fields' => array(
-      'sid' => array(
-        'type' => 'int', 
-        'length' => 10, 
-        'auto_increment' => TRUE, 
-        'not null' => TRUE),
-      'snid' => array(
+      'nid' => array(
         'type' => 'int',
         'length' => 10,
         'not null' => TRUE,
@@ -39,6 +34,11 @@ function simplenews_scheduler_schema() {
       'last_run' => array(
         'type' => 'int',
         'length' => 14,
+        'not null' => TRUE,
+        'default' => 0),
+      'activated' => array(
+        'type' => 'int',
+        'size' => 'tiny',
         'not null' => TRUE,
         'default' => 0),
       'interval' => array(
@@ -63,17 +63,17 @@ function simplenews_scheduler_schema() {
         'not null' => TRUE,
         'default' => 0)
     ),
-    'primary key' => array('sid'),
+    'primary key' => array('nid'),
   );
 
   $schema['simplenews_scheduler_editions'] = array(
     'fields' => array(
-      'edition_snid' => array(
+      'eid' => array(
         'type' => 'int',
         'length' => 10,
         'not null' => TRUE,
         'default' => 0),
-      'snid' => array(
+      'pid' => array(
         'type' => 'int',
         'length' => 10,
         'not null' => TRUE,
@@ -104,5 +104,18 @@ function simplenews_scheduler_update_6000() {
   db_add_field($ret, 'simplenews_scheduler', 'stop', array('type' => 'int', 'length' => 1, 'not null' => TRUE));
   db_add_field($ret, 'simplenews_scheduler', 'stop_date', array('type' => 'int', 'length' => 11, 'not null' => TRUE, 'default' => 1577923199));
   db_add_field($ret, 'simplenews_scheduler', 'stop_edition', array('type' => 'int', 'length' => 10, 'not null' => TRUE, 'default' => 0));
+  return $ret;
+}
+
+/**
+ * Implementation of hook_update_N().
+ */
+function simplenews_scheduler_update_6001() {
+  $ret = array();
+  db_drop_field($ret, 'simplenews_scheduler', 'sid');
+  db_add_field($ret, 'simplenews_scheduler', 'activated', array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0));
+  $ret[] = update_sql("ALTER IGNORE TABLE {simplenews_scheduler} CHANGE snid nid INT(11) NOT NULL DEFAULT '0', ADD PRIMARY KEY (nid)");
+  $ret[] = update_sql("ALTER TABLE {simplenews_scheduler_editions} CHANGE edition_snid eid INT(11) NOT NULL DEFAULT '0'");
+  $ret[] = update_sql("ALTER TABLE {simplenews_scheduler_editions} CHANGE snid pid INT(11) NOT NULL DEFAULT '0'");
   return $ret;
 }
