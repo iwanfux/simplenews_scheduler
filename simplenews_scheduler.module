@@ -53,7 +53,7 @@ function simplenews_scheduler_menu() {
 function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
   global $user;
   // Add schedule settings to the newsletter edit form.
-  if ($form_id == 'simplenews_node_form' && user_access('send scheduled newsletters')) {
+  if (isset($form['#node']) && in_array($form['#node']->type, variable_get('simplenews_content_types', array('simplenews'))) && user_access('send scheduled newsletters')) {
     drupal_add_js(drupal_get_path('module', 'simplenews_scheduler') .'/simplenews_scheduler.js', 'module', 'header', FALSE, FALSE, TRUE);
     // Set the default values.
     if (isset($form_state['node'])) {
@@ -182,7 +182,7 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
  * Implementation of hook_nodeapi().
  */
 function simplenews_scheduler_nodeapi(&$node, $op) {
-  if ($node->nid && $node->type == 'simplenews') {
+  if ($node->nid && in_array($node->type, variable_get('simplenews_content_types', array('simplenews')))) {
     // Get Scheduler values from Simplenews.
     $send         = $node->simplenews['send'];
     $activated    = $node->simplenews['activated'];
@@ -316,7 +316,7 @@ function theme_simplenews_scheduler_title($title, $serial) {
  */
 function _simplenews_scheduler_tab_permission($node) {
   $pid = _simplenews_scheduler_get_pid($node);
-  if ($node->type == 'simplenews' && 
+  if (in_array($node->type, variable_get('simplenews_content_types', array('simplenews'))) &&
       user_access('overview scheduled newsletters') &&
       _simplenews_scheduler_count_editions($pid)) {
     return TRUE;
