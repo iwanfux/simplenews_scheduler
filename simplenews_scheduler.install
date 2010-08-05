@@ -104,6 +104,8 @@ function simplenews_scheduler_update_6000() {
   db_add_field($ret, 'simplenews_scheduler', 'stop', array('type' => 'int', 'length' => 1, 'not null' => TRUE));
   db_add_field($ret, 'simplenews_scheduler', 'stop_date', array('type' => 'int', 'length' => 11, 'not null' => TRUE, 'default' => 1577923199));
   db_add_field($ret, 'simplenews_scheduler', 'stop_edition', array('type' => 'int', 'length' => 10, 'not null' => TRUE, 'default' => 0));
+  $ret[] = update_sql("ALTER TABLE {simplenews_scheduler} CHANGE sched_interval `interval` VARCHAR(10) NOT NULL DEFAULT '0'");
+  $ret[] = update_sql("ALTER TABLE {simplenews_scheduler} CHANGE sched_start start_date INT(11) NOT NULL DEFAULT '0'");
   return $ret;
 }
 
