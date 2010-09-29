@@ -207,11 +207,13 @@ function simplenews_scheduler_nodeapi(&$node, $op) {
     switch ($op) {
       case 'insert':
       case 'update':
-        $result = db_query("INSERT INTO {simplenews_scheduler} (nid, activated, `interval`, start_date, stop, stop_date, stop_edition) VALUES (%d, %d, '%s', %d, %d, %d, %d) 
+        if (!$node->is_edition) {
+          $result = db_query("INSERT INTO {simplenews_scheduler} (nid, activated, `interval`, start_date, stop, stop_date, stop_edition) VALUES (%d, %d, '%s', %d, %d, %d, %d) 
                             ON DUPLICATE KEY UPDATE last_run = 0, activated = %d, `interval` = '%s', start_date = %d, stop = %d, stop_date = %d, stop_edition = %d",
                             $node->nid, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $node->nid);
-        if (!$result) {
-          drupal_set_message(t('Saving or updating schedule settings for <em>@title</em> has been unsuccessful.', array('@title' =>  $node->title)), 'error');
+          if (!$result) {
+            drupal_set_message(t('Saving or updating schedule settings for <em>@title</em> has been unsuccessful.', array('@title' =>  $node->title)), 'error');
+          }
         }
         break;
       case 'load':
@@ -355,6 +357,8 @@ function _simplenews_scheduler_new_edition($nid) {
   if (($stop == 2 && $serial <= $stop_edition) || $stop != 2) {
     // Mark as new with removeing node ID and creation date.
     unset($node->nid, $node->created);
+    // Mark as new edition.
+    $node->is_edition = TRUE;
     // Now save it as a new node.
     node_save($node);
     // Save taxonomy terms.
