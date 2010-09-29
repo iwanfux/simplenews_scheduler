@@ -24,13 +24,6 @@ function simplenews_scheduler_schema() {
         'length' => 10,
         'not null' => TRUE,
         'default' => 0),
-      'run_count' => array(
-        'type' => 'int',
-        'not null' => TRUE,
-        'default' => 0),
-      'run_limit' => array(
-        'type' => 'int',
-        'not null' => TRUE),
       'last_run' => array(
         'type' => 'int',
         'length' => 14,
@@ -119,5 +112,15 @@ function simplenews_scheduler_update_6001() {
   $ret[] = update_sql("ALTER IGNORE TABLE {simplenews_scheduler} CHANGE snid nid INT(11) NOT NULL DEFAULT '0', ADD PRIMARY KEY (nid)");
   $ret[] = update_sql("ALTER TABLE {simplenews_scheduler_editions} CHANGE edition_snid eid INT(11) NOT NULL DEFAULT '0'");
   $ret[] = update_sql("ALTER TABLE {simplenews_scheduler_editions} CHANGE snid pid INT(11) NOT NULL DEFAULT '0'");
+  return $ret;
+}
+
+/**
+ * Implementation of hook_update_N().
+ */
+function simplenews_scheduler_update_6002() {
+  $ret = array();
+  db_drop_field($ret, 'simplenews_scheduler', 'run_limit');
+  db_drop_field($ret, 'simplenews_scheduler', 'run_count');
   return $ret;
 }
