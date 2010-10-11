@@ -21,12 +21,10 @@ function simplenews_scheduler_schema() {
     'fields' => array(
       'nid' => array(
         'type' => 'int',
-        'length' => 10,
         'not null' => TRUE,
         'default' => 0),
       'last_run' => array(
         'type' => 'int',
-        'length' => 14,
         'not null' => TRUE,
         'default' => 0),
       'activated' => array(
@@ -39,20 +37,16 @@ function simplenews_scheduler_schema() {
         'length' => 10),
       'start_date' => array(
         'type' => 'int',
-        'length' => 11,
         'not null' => TRUE),
       'stop' => array(
         'type' => 'int',
-        'length' => 1,
         'not null' => TRUE),
       'stop_date' => array(
         'type' => 'int',
-        'length' => 11,
         'not null' => TRUE,
         'default' => 1388447999), // Default is Mon, 31 Dec 2013 23:59:59 GMT
       'stop_edition' => array(
         'type' => 'int',
-        'length' => 10,
         'not null' => TRUE,
         'default' => 0)
     ),
@@ -63,17 +57,14 @@ function simplenews_scheduler_schema() {
     'fields' => array(
       'eid' => array(
         'type' => 'int',
-        'length' => 10,
         'not null' => TRUE,
         'default' => 0),
       'pid' => array(
         'type' => 'int',
-        'length' => 10,
         'not null' => TRUE,
         'default' => 0),
       'date_issued' => array(
         'type' => 'int',
-        'length' => 11,
         'not null' => TRUE,
         'default' => 0)
     )
