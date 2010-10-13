@@ -363,7 +363,7 @@ function _simplenews_scheduler_new_edition($nid) {
     node_save($node);
     // Save taxonomy terms.
     taxonomy_node_save($node, $terms);
-    watchdog('simplenews_scheduler', 'Saved new node ready to be sent. Node ID: !nid', array('!nid' => $node->nid));
+    watchdog('simplenews_sched', 'Saved new node ready to be sent. Node ID: !nid', array('!nid' => $node->nid));
     // If the node has attachments.
     if (isset($files) && count($files)) {
       // Simply copy the corresponding records in files and upload tables without duplicate the file.
