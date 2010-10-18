@@ -348,7 +348,7 @@ function _simplenews_scheduler_new_edition($nid) {
     $node->format = $format_id;
   }
   // Trigger it for sending.
-  $node->send = 1;
+  $node->simplenews['send'] = 1;
   // Check upon if sending should stop with a given edition number.
   $result = db_fetch_array(db_query("SELECT stop, stop_edition FROM {simplenews_scheduler} WHERE nid = %d", $nid));
   $stop = $result['stop'];
