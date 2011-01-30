@@ -67,7 +67,8 @@ function simplenews_scheduler_schema() {
         'type' => 'int',
         'not null' => TRUE,
         'default' => 0)
-    )
+    ),
+    'primary key' => array('eid'),
   );
   return $schema;
 }
@@ -113,5 +114,14 @@ function simplenews_scheduler_update_6002() {
   $ret = array();
   db_drop_field($ret, 'simplenews_scheduler', 'run_limit');
   db_drop_field($ret, 'simplenews_scheduler', 'run_count');
+  return $ret;
+}
+
+/**
+ * Implementation of hook_update_N().
+ */
+function simplenews_scheduler_update_6003() {
+  $ret = array();
+  db_add_primary_key($ret, 'simplenews_scheduler_editions', array('eid'));
   return $ret;
 }
