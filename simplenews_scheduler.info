@@ -1,4 +1,3 @@
-; $Id$
 name = "Simplenews Scheduler"
 description = "Allows a schedule to be set for sending (and resending) a Simplenews item."
 core = 6.x
