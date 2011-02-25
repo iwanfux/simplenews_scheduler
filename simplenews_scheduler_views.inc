@@ -1,5 +1,4 @@
 <?php
-// $Id$
 
 /**
  * @file simplenews_scheduler_views.inc
