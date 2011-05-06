@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 name = Simplenews Scheduler
 description = "Allows a schedule to be set for sending (and resending) a simplenews item"
 dependencies[] = simplenews
@@ -5,3 +6,11 @@ dependencies[] = date
 package = Mail
 version = "6.x-1.0-alpha1"
 core = 6.x
+=======
+name = "Simplenews Scheduler"
+description = "Allows a schedule to be set for sending (and resending) a Simplenews item."
+core = 6.x
+package = Mail
+dependencies[] = simplenews
+dependencies[] = date
+>>>>>>> origin/6.x-1.x
