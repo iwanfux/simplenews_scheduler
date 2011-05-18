@@ -1,12 +1,6 @@
 <?php
 
 /**
-<<<<<<< HEAD
- * Implementation of hook_install().
- */
-function simplenews_scheduler_install() {
-	drupal_install_schema('simplenews_scheduler');
-=======
  * @file
  * Install and uninstall functions for the Simplenews Scheduler module.
  */
@@ -16,35 +10,12 @@ function simplenews_scheduler_install() {
  */
 function simplenews_scheduler_install() {
   drupal_install_schema('simplenews_scheduler');
->>>>>>> origin/6.x-1.x
 }
 
 /**
  * Implementation of hook_schema().
  */
 function simplenews_scheduler_schema() {
-<<<<<<< HEAD
-	$schema['simplenews_scheduler'] = array(
-	    'fields' => array(
-			'sid'				=> array('type' => 'int', 'length' =>10, 'auto_increment' => TRUE, 'not null' => TRUE),
-	      	'snid'				=> array('type' => 'int', 'length' =>10, 'not null' => TRUE, 'default' => 0),
-	      	'run_count' 		=> array('type' => 'int', 'not null' => TRUE, 'default' => 0),
-	      	'run_limit' 		=> array('type' => 'int', 'not null' => TRUE),
-	  	  	'last_run' 			=> array('type' => 'int', 'length' =>14, 'not null' => TRUE, 'default' => 0),
-	  	  	'sched_interval' 	=> array('type' => 'varchar', 'length' =>10),
-	      	'sched_start' 		=> array('type' => 'int', 'length' =>11, 'not null' => TRUE)
-		),
-	    'primary key' => array('sid'),
-	);
-	$schema['simplenews_scheduler_editions'] = array(
-		'fields' => array(
-      		'edition_snid' 	=> array('type' => 'int', 'length' =>10,'not null' => TRUE, 'default' => 0),
-      		'snid' 			=> array('type' => 'int', 'length' =>10, 'not null' => TRUE, 'default' => 0),
-      		'date_issued' 	=> array('type' => 'int', 'length' =>11, 'not null' => TRUE, 'default' => 0)
-		)
-	);
-	return $schema;
-=======
   $schema['simplenews_scheduler'] = array(
     'fields' => array(
       'nid' => array(
@@ -99,18 +70,12 @@ function simplenews_scheduler_schema() {
     'primary key' => array('eid'),
   );
   return $schema;
->>>>>>> origin/6.x-1.x
 }
 
 /**
  * Implementation of hook_uninstall().
  */
 function simplenews_scheduler_uninstall() {
-<<<<<<< HEAD
-	// Remove tables.
-	drupal_uninstall_schema('simplenews_scheduler');
-}
-=======
   // Remove tables.
   drupal_uninstall_schema('simplenews_scheduler');
 }
@@ -159,4 +124,3 @@ function simplenews_scheduler_update_6003() {
   db_add_primary_key($ret, 'simplenews_scheduler_editions', array('eid'));
   return $ret;
 }
->>>>>>> origin/6.x-1.x
