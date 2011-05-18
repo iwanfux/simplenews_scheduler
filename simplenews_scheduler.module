@@ -46,7 +46,7 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
     drupal_add_js(drupal_get_path('module', 'simplenews_scheduler') . '/simplenews_scheduler.js', 'module', 'header', FALSE, FALSE, TRUE);
     
     // Set the default values.
-    
+    $form['#submit'][]="simplenews_scheduler_submit";
 
     $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE nid = %d", arg(1));
     $row = db_fetch_array($result);
@@ -112,43 +112,50 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
   }
 }
 
+function simplenews_scheduler_submit($form, &$form_state) {
+  
+  $nid = $form_state['values']['nid'];  
+  $node = node_load($nid);
+  
+   // Get Scheduler values from Simplenews.
+  $send = $form_state['values']['simplenews']['send'];
+  $interval = $form_state['values']['simplenews']['scheduler']['interval'];
+  $start_date = $form_state['values']['simplenews']['scheduler']['start_date'];
+  $stop = $form_state['values']['simplenews']['scheduler']['stop']; // number of editions
+  $stop_date = $form_state['values']['simplenews']['scheduler']['stop_date'];
+  $stop_edition = $form_state['values']['simplenews']['scheduler']['stop_edition'];
+  
+  // Change activation status if necessary.
+  switch ($send) {
+    case 0 :
+    case 1 :
+      $activated = 0;
+      break;
+    case 3 :
+      $activated = 1;
+      break;
+  }
+  // Convert the user time back to GMT time and use that as our record.
+  $start_date = date_convert($start_date, DATE_DATETIME, DATE_UNIX, date_default_timezone_name());
+  $stop_date = date_convert($stop_date, DATE_DATETIME, DATE_UNIX, date_default_timezone_name());
+  if (! $node->is_edition) {
+    $result = db_query("INSERT INTO {simplenews_scheduler} (nid, activated, `interval`, 
+                           start_date, stop, stop_date, stop_edition ) 
+                             VALUES (%d, %d, '%s', %d, %d, %d, %d)
+                             
+                      ON DUPLICATE KEY UPDATE last_run = 0, activated = %d, `interval` = '%s', start_date = %d, stop = %d, stop_date = %d, stop_edition = %d", $nid, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $nid);
+    if (! $result) {
+      drupal_set_message(t('Saving or updating schedule settings for <em>@title</em> has been unsuccessful.', array('@title' => $node->title)), 'error');
+    }
+  }
+}
+
 /**
  * Implementation of hook_nodeapi().
  */
 function simplenews_scheduler_nodeapi(&$node, $op) {
   if ($node->nid && in_array($node->type, variable_get('simplenews_content_types', array('simplenews')))) {
-    // Get Scheduler values from Simplenews.
-    $send = $node->simplenews['send'];
-    $activated = $node->simplenews['activated'];
-    $interval = $node->simplenews['interval'];
-    $start_date = $node->simplenews['start_date'];
-    $stop = $node->simplenews['stop'];
-    $stop_date = $node->simplenews['stop_date'];
-    $stop_edition = $node->simplenews['stop_edition'];
-    // Change activation status if necessary.
-    switch ($send) {
-      case 0 :
-      case 1 :
-        $activated = 0;
-        break;
-      case 3 :
-        $activated = 1;
-        break;
-    }
-    // Convert the user time back to GMT time and use that as our record.
-    $start_date = date_convert($start_date, DATE_DATETIME, DATE_UNIX, date_default_timezone_name());
-    $stop_date = date_convert($stop_date, DATE_DATETIME, DATE_UNIX, date_default_timezone_name());
     switch ($op) {
-      case 'insert' :
-      case 'update' :
-        if (! $node->is_edition) {
-          $result = db_query("INSERT INTO {simplenews_scheduler} (nid, activated, `interval`, start_date, stop, stop_date, stop_edition) VALUES (%d, %d, '%s', %d, %d, %d, %d) 
-                            ON DUPLICATE KEY UPDATE last_run = 0, activated = %d, `interval` = '%s', start_date = %d, stop = %d, stop_date = %d, stop_edition = %d", $node->nid, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $node->nid);
-          if (! $result) {
-            drupal_set_message(t('Saving or updating schedule settings for <em>@title</em> has been unsuccessful.', array('@title' => $node->title)), 'error');
-          }
-        }
-        break;
       case 'load' :
         $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE nid = %d", $node->nid);
         $row = db_fetch_array($result);
