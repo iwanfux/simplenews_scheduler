@@ -213,8 +213,8 @@ function simplenews_scheduler_cron() {
         db_query("INSERT INTO {simplenews_scheduler_editions} (eid, pid, date_issued) VALUES (%d, %d, %d)", $eid, $pid, $now_time);
         $node = node_load($eid);
         // Send the newsletter edition to each subscriber of the parent newsletter
-        // get the tid of this newsletter
-        $tid = db_result(db_query("SELECT tid from {simplenews_newsletters} WHERE nid = %d", $row['nid']));
+        // get the tid of this newsletter and generate a list of accounts to send this new newsletter to, based on the parent newsletter.
+        $tid = db_result(db_query("SELECT tid from {simplenews_newsletters} WHERE nid = %d", $node->nid));
         $accounts = simplenews_scheduler_get_newsletter_accounts($tid);
         simplenews_send_node($node, $accounts);
       }
@@ -299,7 +299,7 @@ function theme_simplenews_scheduler_title($title, $serial) {
  */
 function _simplenews_scheduler_tab_permission($node) {
   $pid = _simplenews_scheduler_get_pid($node);
-  if (in_array($node->type, variable_get('simplenews_content_types', array('simplenews'))) && user_access('overview scheduled newsletters') && _simplenews_scheduler_count_editions($pid)) {
+  if (in_array($node->type, variable_get('simplenews_content_types', array('simplenews'))) && user_access('overview scheduled newsletters')) {
     return TRUE;
   }
   else {
@@ -312,6 +312,7 @@ function _simplenews_scheduler_tab_permission($node) {
  */
 function _simplenews_scheduler_new_edition($nid) {
   $node = node_load($nid);
+  
   if (module_exists('upload')) {
     $files = upload_load($node);
   }
@@ -319,15 +320,17 @@ function _simplenews_scheduler_new_edition($nid) {
   $content = drupal_render($node->content);
   // Store taxonomy terms to save later to the node.
   $terms = $node->taxonomy;
-  // Append title.
-  $serial = _simplenews_scheduler_count_editions($nid) + 1;
-  $node->title = theme('simplenews_scheduler_title', $node->title, $serial);
+  
+  // let the node have a title that makes it different, however the actual Email subject passes through the token system  
+  $node->title .= '['.t('simplenews scheduled edition]').']';
+  
   // Output format for all newly created items should just be Full HTML, incase of Views output etc.
   if ($format_id = db_result(db_query('SELECT format FROM {filter_formats} WHERE name like "full html"'))) {
     $node->format = $format_id;
   }
   // Trigger it for sending.
   $node->simplenews['send'] = 1;
+    
   // Check upon if sending should stop with a given edition number.
   $result = db_fetch_array(db_query("SELECT stop, stop_edition FROM {simplenews_scheduler} WHERE nid = %d", $nid));
   $stop = $result['stop'];
@@ -353,19 +356,17 @@ function _simplenews_scheduler_new_edition($nid) {
     }
     // Prepare the correct status for Simplenews to pickup.
     db_query("UPDATE {simplenews_newsletters} SET s_status=1 WHERE nid=%d", $node->nid);
-    // We have to call simplenews_nodeapi() directly as we wont have a new node ID before we save.
-    simplenews_nodeapi($node, 'update', $teaser = NULL, $page = NULL);
+    
+    // ensure this edition has the same simplenews_newsletter settings as the parent
+    // also ensures the 'tid' is set, so we use the same newsletter settings as the parent
+    if ($newsletter = db_fetch_array(db_query("SELECT * from {simplenews_newsletters} WHERE nid = %d", $nid)) ) {
+      db_query("UPDATE {simplenews_newsletters} SET s_status = 1, tid = %d, s_format = '%s', priority = %d, receipt = %d WHERE nid=%d", $newsletter['tid'], $newsletter['s_format'], $newsletter['priority'], $newsletter['receipt'], $node->nid);
+    } 
+      
     return $node->nid;
   }
 }
 
-/**
- * Returns the last edition number of the scheduled newsletter.
- */
-function _simplenews_scheduler_count_editions($nid) {
-  $result = db_result(db_query("SELECT COUNT(*) as c from {simplenews_scheduler_editions} where pid = %d", $nid));
-  return $result;
-}
 
 /**
  * Helper fucntion to get the identifier of newsletter.
@@ -381,4 +382,31 @@ function _simplenews_scheduler_get_pid($node) {
   }
   
   return $nid;
+}
+
+/**
+ * Implementation of hook_token_list().
+ */
+function simplenews_scheduler_token_list($type = 'all') {
+  $tokens = array();
+
+  switch ($type) {
+    case 'simplenews':
+      $tokens['simplenews']['simplenews-edition-number']     = t('Edition number of the simplenews newsletter');
+      break;
+  }
+  return $tokens;
+}
+
+/**
+ * Implementation of hook_token_values().
+ */
+function simplenews_scheduler_token_values($type, $object = NULL, $options = array() ) {
+  $values = array();
+  
+  if($type == 'simplenews') {
+    $values['simplenews-edition-number'] = db_result(db_query("SELECT count(*)-1 AS c FROM {simplenews_newsletters} where tid=3"));
+  }
+  
+  return $values;
 }
