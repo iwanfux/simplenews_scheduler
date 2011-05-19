@@ -124,3 +124,13 @@ function simplenews_scheduler_update_6003() {
   db_add_primary_key($ret, 'simplenews_scheduler_editions', array('eid'));
   return $ret;
 }
+
+/**
+ * Implementation of hook_update_N().
+ */
+function simplenews_scheduler_update_6004() {
+  $ret = array();
+  db_add_field($ret, 'simplenews_scheduler', 'php_eval', array('type' => 'blob'));
+  return $ret;
+}
+

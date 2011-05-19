@@ -92,6 +92,7 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
       $form['simplenews']['scheduler']['stop'] = array('#type' => 'radios', '#title' => t('Stop sending'), '#default_value' => $scheduler['stop'] ? $scheduler['stop'] : 0, '#options' => array(t('Never'), t('On a given date'), t('After a maximum number of editions')), '#attributes' => array('class' => 'simplenews-command-stop'));
       $form['simplenews']['scheduler']['stop_date'] = array('#type' => 'date_select', '#default_value' => $date_str_stop, '#date_type' => DATE_DATETIME, '#date_format' => 'm-d-Y - H:i', '#date_timezone' => date_default_timezone_name(), '#date_label_position' => 'none', '#date_increment' => 1, '#date_year_range' => '2010:+3', '#required' => TRUE);
       $form['simplenews']['scheduler']['stop_edition'] = array('#type' => 'textfield', '#default_value' => $scheduler['stop_edition'] ? $scheduler['stop_edition'] : 0, '#size' => 5, '#maxlength' => 5, '#required' => TRUE, '#description' => t('The maximum number of editions which should be sent.'));
+      $form['simplenews']['scheduler']['php_eval'] = array('#type' => 'textarea', '#title' => t('Additionally only create newsletter edition if the following code returns true'), '#default_value' => $scheduler['php_eval'], '#required' => FALSE, '#description' => t('Additionally evaluate the following PHP code and only issue the newsletter edition if it returns true. Do not include <?PHP ?>'));
       $form['simplenews']['scheduler']['activated'] = array('#type' => 'hidden', '#value' => $scheduler['activated']);
     }
     else {
@@ -131,7 +132,7 @@ function simplenews_scheduler_submit($form, &$form_state) {
   $stop = $form_state['values']['simplenews']['scheduler']['stop']; // number of editions
   $stop_date = $form_state['values']['simplenews']['scheduler']['stop_date'];
   $stop_edition = $form_state['values']['simplenews']['scheduler']['stop_edition'];
-  
+  $php_eval = $form_state['values']['simplenews']['scheduler']['php_eval'];
   // Change activation status if necessary.
   switch ($send) {
     case 0 :
@@ -147,10 +148,9 @@ function simplenews_scheduler_submit($form, &$form_state) {
   $stop_date = date_convert($stop_date, DATE_DATETIME, DATE_UNIX, date_default_timezone_name());
   if (! $node->is_edition) {
     $result = db_query("INSERT INTO {simplenews_scheduler} (nid, activated, `interval`, 
-                           start_date, stop, stop_date, stop_edition ) 
-                             VALUES (%d, %d, '%s', %d, %d, %d, %d)
-                             
-                      ON DUPLICATE KEY UPDATE last_run = 0, activated = %d, `interval` = '%s', start_date = %d, stop = %d, stop_date = %d, stop_edition = %d", $nid, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $nid);
+                           start_date, stop, stop_date, stop_edition, php_eval ) 
+                             VALUES (%d, %d, '%s', %d, %d, %d, %d, '%s')                             
+                      ON DUPLICATE KEY UPDATE last_run = 0, activated = %d, `interval` = '%s', start_date = %d, stop = %d, stop_date = %d, stop_edition = %d, php_eval = '%s' ", $nid, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $php_eval, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $php_eval, $nid);
     if (! $result) {
       drupal_set_message(t('Saving or updating schedule settings for <em>@title</em> has been unsuccessful.', array('@title' => $node->title)), 'error');
     }
@@ -199,6 +199,14 @@ function simplenews_scheduler_cron() {
     $now_time = gmmktime();
     $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE activated = 1 AND %d - last_run > %d AND `interval` = '%s' AND start_date <= %d AND %d < stop_date", $now_time, $seconds, $interval, $now_time, $now_time);
     while ($row = db_fetch_array($result)) {
+      // does this newsletter have something to evaluate to check running condition?
+      if(strlen($row['php_eval'])) {
+        $eval_result = eval($row['php_eval']);
+        if(!$eval_result) {
+          break;
+        }  
+      }
+      
       $pid = $row["nid"];
       // If returns with null don't do anything.
       $first_run = intval($row['start_date']);
