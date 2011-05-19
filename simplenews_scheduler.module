@@ -32,7 +32,7 @@ function simplenews_scheduler_perm() {
  */
 function simplenews_scheduler_menu() {
   $items = array();
-  $items["node/%node/editions"] = array('title' => 'Editions', 'type' => MENU_LOCAL_TASK, 'weight' => 2, 'page callback' => 'simplenews_scheduler_node_page', 'page arguments' => array(1), 'access callback' => '_simplenews_scheduler_tab_permission', 'access arguments' => array(1));
+  $items["node/%node/editions"] = array('title' => 'Newsletter Editions', 'type' => MENU_LOCAL_TASK, 'weight' => 2, 'page callback' => 'simplenews_scheduler_node_page', 'page arguments' => array(1), 'access callback' => '_simplenews_scheduler_tab_permission', 'access arguments' => array(1));
   return $items;
 }
 
@@ -41,8 +41,15 @@ function simplenews_scheduler_menu() {
  */
 function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
   global $user;
+  // if this is an edition, then we should be fiddling with it, only the parent.
+  $node = node_load(arg(1));
+  if($node->simplenews_scheduler_edition) {
+    drupal_set_message(t('You have been redirected to the original newsletter'));
+    drupal_goto('node/'.$node->simplenews_scheduler_edition['pid'].'/simplenews');
+  }
+  
   // Add schedule settings to the newsletter edit form.
-  if (isset($form['simplenews']) && user_access('send scheduled newsletters')) {
+  if (isset($form['simplenews']) && user_access('send scheduled newsletters') && !isset($node->simplenews_scheduler_edition)) {
     drupal_add_js(drupal_get_path('module', 'simplenews_scheduler') . '/simplenews_scheduler.js', 'module', 'header', FALSE, FALSE, TRUE);
     
     // Set the default values.
@@ -205,13 +212,50 @@ function simplenews_scheduler_cron() {
         db_query("UPDATE {simplenews_scheduler} SET last_run = %d WHERE nid = %d", $this_run, $pid);
         db_query("INSERT INTO {simplenews_scheduler_editions} (eid, pid, date_issued) VALUES (%d, %d, %d)", $eid, $pid, $now_time);
         $node = node_load($eid);
-        // Send the newsletter edition.
-        simplenews_send_node($node);
+        // Send the newsletter edition to each subscriber of the parent newsletter
+        // get the tid of this newsletter
+        $tid = db_result(db_query("SELECT tid from {simplenews_newsletters} WHERE nid = %d", $row['nid']));
+        $accounts = simplenews_scheduler_get_newsletter_accounts($tid);
+        simplenews_send_node($node, $accounts);
       }
     }
   }
 }
 
+// @todo: might be a better already existing function for this
+function simplenews_scheduler_get_newsletter_accounts($newsletter_tid) {
+
+  // taken from the newsletter subscription list
+   $query = '
+    SELECT DISTINCT ss.snid, ss.*, u.name
+    FROM {simplenews_subscriptions} ss
+    LEFT JOIN {users} u
+      ON ss.uid = u.uid
+    INNER JOIN {simplenews_snid_tid} s
+      ON ss.snid = s.snid
+    AND s.tid = %d AND s.status = 1';
+   
+   $result = db_query($query, $newsletter_tid);
+  
+   // build the accounts array
+    /* @param array $accounts  account objects to send the newsletter to.
+     *   account = object (
+     *     snid     = subscription id, or 0 if no subscription record exists.
+     *     tids     = array(tid) array of newsletter tid's.
+     *     uid      = user id, or 0 if subscriber is anonymous user.
+     *     mail     = user email address.
+     *     name     = <empty>. Added for compatibility with user account object.
+     *     language = language object. User-preferred or default language.
+     *   
+     */
+   $accounts = array();
+   while($account = db_fetch_object($result)) {
+     $account->tids = array($newsletter_tid);
+     $accounts[] = $account;     
+   }
+   
+   return $accounts;
+}
 /**
  * Menu callback to provide an overview page with the scheduled newsletters.
  */
