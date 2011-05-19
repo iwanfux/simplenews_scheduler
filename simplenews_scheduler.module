@@ -321,9 +321,6 @@ function _simplenews_scheduler_new_edition($nid) {
   // Store taxonomy terms to save later to the node.
   $terms = $node->taxonomy;
   
-  // let the node have a title that makes it different, however the actual Email subject passes through the token system  
-  $node->title .= '['.t('simplenews scheduled edition]').']';
-  
   // Output format for all newly created items should just be Full HTML, incase of Views output etc.
   if ($format_id = db_result(db_query('SELECT format FROM {filter_formats} WHERE name like "full html"'))) {
     $node->format = $format_id;
