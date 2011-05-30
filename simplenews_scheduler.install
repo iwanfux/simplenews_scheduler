@@ -47,7 +47,12 @@ function simplenews_scheduler_schema() {
       'stop_edition' => array(
         'type' => 'int',
         'not null' => TRUE,
-        'default' => 0)
+        'default' => 0),
+      'php_eval' => array(
+        'type' => 'blob',
+        'not null' => TRUE,
+        'default' => '')
+        
     ),
     'primary key' => array('nid'),
   );
