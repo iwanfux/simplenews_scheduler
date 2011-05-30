@@ -389,29 +389,3 @@ function _simplenews_scheduler_get_pid($node) {
   return $nid;
 }
 
-/**
- * Implementation of hook_token_list().
- */
-function simplenews_scheduler_token_list($type = 'all') {
-  $tokens = array();
-
-  switch ($type) {
-    case 'simplenews':
-      $tokens['simplenews']['simplenews-edition-number']     = t('Edition number of the simplenews newsletter');
-      break;
-  }
-  return $tokens;
-}
-
-/**
- * Implementation of hook_token_values().
- */
-function simplenews_scheduler_token_values($type, $object = NULL, $options = array() ) {
-  $values = array();
-  
-  if($type == 'simplenews') {
-    $values['simplenews-edition-number'] = db_result(db_query("SELECT count(*)-1 AS c FROM {simplenews_newsletters} where tid=3"));
-  }
-  
-  return $values;
-}
