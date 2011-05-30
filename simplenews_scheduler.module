@@ -67,7 +67,15 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
     $form['simplenews']['scheduler'] = array('#type' => 'fieldset', '#title' => t('Schedule details'), '#attributes' => array('class' => 'schedule_info'), '#collapsible' => FALSE, '#collapsed' => FALSE, '#tree' => TRUE);
     // Display settings only if this is not an edition.
     if (! isset($form['#node']->simplenews_scheduler_edition)) {
-      $form['simplenews']['scheduler']['interval'] = array('#type' => 'select', '#title' => t('Send once per'), '#options' => array('day' => t('Day'), 'week' => t('Week'), 'month' => t('Month')), '#description' => t('Interval to send at'), '#default_value' => $scheduler['interval']);
+      $form['simplenews']['scheduler']['interval'] = array('#type' => 'select', 
+                                                           '#title' => t('Send once per'), 
+                                                           '#options' => array('hour' => t('Hour'), 
+                                                                               'day' => t('Day'), 
+                                                                               'week' => t('Week'), 
+                                                                               'month' => t('Month')), 
+                                                           '#description' => t('Interval to send at'), 
+                                                           '#default_value' => $scheduler['interval']);
+                                                           
       // If there is no default value, use the current time for start.
       $date_start = $scheduler['start_date'] ? $scheduler['start_date'] : time();
       // and Mon, 30 Dec 2013 23:59:59 GMT for stop, that should be enough.
@@ -191,6 +199,7 @@ function simplenews_scheduler_nodeapi(&$node, $op) {
  */
 function simplenews_scheduler_cron() {
   // Set the default intervals for scheduling.
+  $intervals['hour'] = 3600;
   $intervals['day'] = 86400;
   $intervals['week'] = $intervals['day'] * 7;
   $intervals['month'] = $intervals['day'] * date_days_in_month(date('Y'), date('m'));
