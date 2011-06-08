@@ -155,10 +155,10 @@ function simplenews_scheduler_submit($form, &$form_state) {
   $start_date = date_convert($start_date, DATE_DATETIME, DATE_UNIX, date_default_timezone_name());
   $stop_date = date_convert($stop_date, DATE_DATETIME, DATE_UNIX, date_default_timezone_name());
   if (! $node->is_edition) {
-    $result = db_query("INSERT INTO {simplenews_scheduler} (nid, activated, `interval`, 
+    $result = db_query("INSERT INTO {simplenews_scheduler} (nid, activated, interval, 
                            start_date, stop, stop_date, stop_edition, php_eval ) 
                              VALUES (%d, %d, '%s', %d, %d, %d, %d, '%s')                             
-                      ON DUPLICATE KEY UPDATE last_run = 0, activated = %d, `interval` = '%s', start_date = %d, stop = %d, stop_date = %d, stop_edition = %d, php_eval = '%s' ", $nid, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $php_eval, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $php_eval, $nid);
+                      ON DUPLICATE KEY UPDATE last_run = 0, activated = %d, interval = '%s', start_date = %d, stop = %d, stop_date = %d, stop_edition = %d, php_eval = '%s' ", $nid, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $php_eval, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $php_eval, $nid);
     if (! $result) {
       drupal_set_message(t('Saving or updating schedule settings for <em>@title</em> has been unsuccessful.', array('@title' => $node->title)), 'error');
     }
@@ -206,7 +206,7 @@ function simplenews_scheduler_cron() {
   foreach ($intervals as $interval => $seconds) {
     // Check daily items that need to be sent.
     $now_time = gmmktime();
-    $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE activated = 1 AND %d - last_run > %d AND `interval` = '%s' AND start_date <= %d AND %d < stop_date", $now_time, $seconds, $interval, $now_time, $now_time);
+    $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE activated = 1 AND %d - last_run > %d AND interval = '%s' AND start_date <= %d AND %d < stop_date", $now_time, $seconds, $interval, $now_time, $now_time);
     while ($row = db_fetch_array($result)) {
       // does this newsletter have something to evaluate to check running condition?
       if(strlen($row['php_eval'])) {
