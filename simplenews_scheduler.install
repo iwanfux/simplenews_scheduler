@@ -31,13 +31,13 @@ function simplenews_scheduler_schema() {
         'size' => 'tiny',
         'not null' => TRUE,
         'default' => 0),
-      'send_interval' => array(
+      'interval' => array(
         'type' => 'varchar',
         'length' => 10),
       'start_date' => array(
         'type' => 'int',
         'not null' => TRUE),
-      'stop_type' => array(
+      'stop' => array(
         'type' => 'int',
         'not null' => TRUE),
       'stop_date' => array(
@@ -50,8 +50,9 @@ function simplenews_scheduler_schema() {
         'default' => 0),
       'php_eval' => array(
         'type' => 'blob',
-        'not null' => TRUE
-        )        
+        'not null' => TRUE,
+        'default' => '')
+        
     ),
     'primary key' => array('nid'),
   );
@@ -92,7 +93,7 @@ function simplenews_scheduler_update_6000() {
   db_add_field($ret, 'simplenews_scheduler', 'stop', array('type' => 'int', 'length' => 1, 'not null' => TRUE));
   db_add_field($ret, 'simplenews_scheduler', 'stop_date', array('type' => 'int', 'length' => 11, 'not null' => TRUE, 'default' => 1577923199));
   db_add_field($ret, 'simplenews_scheduler', 'stop_edition', array('type' => 'int', 'length' => 10, 'not null' => TRUE, 'default' => 0));
-  $ret[] = update_sql("ALTER TABLE {simplenews_scheduler} CHANGE sched_interval interval VARCHAR(10) NOT NULL DEFAULT '0'");
+  $ret[] = update_sql("ALTER TABLE {simplenews_scheduler} CHANGE sched_interval `interval` VARCHAR(10) NOT NULL DEFAULT '0'");
   $ret[] = update_sql("ALTER TABLE {simplenews_scheduler} CHANGE sched_start start_date INT(11) NOT NULL DEFAULT '0'");
   return $ret;
 }
@@ -137,27 +138,4 @@ function simplenews_scheduler_update_6004() {
   db_add_field($ret, 'simplenews_scheduler', 'php_eval', array('type' => 'blob'));
   return $ret;
 }
-/**
- * Implementation of hook_update_N().
-  // attempt to change to pgsql compatible strings
-  // #970942    
- */
-function simplenews_scheduler_update_6005() {
-  $ret = array();
-        
-  db_change_field($ret, 'simplenews_scheduler', 'stop', 'stop_type', array(
-    'type' => 'int',
-    'not null' => TRUE,
-    )
-  );
-  db_change_field($ret, 'simplenews_scheduler', 'interval', 'send_interval', array(
-	'type' => 'varchar',
-	'length' => 10,
-    )
-  );
-  
-  
-  return $ret;
-}
-
 
