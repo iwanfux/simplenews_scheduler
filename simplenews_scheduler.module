@@ -198,6 +198,8 @@ function simplenews_scheduler_nodeapi(&$node, $op) {
  *
  */
 function simplenews_scheduler_cron() {
+
+  module_load_include('inc', 'simplenews', 'includes/simplenews.mail');
   // Set the default intervals for scheduling.
   $intervals['hour'] = 3600;
   $intervals['day'] = 86400;
