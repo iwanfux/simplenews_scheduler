@@ -1,7 +1,6 @@
 <?php
 // $Id: simplenews_scheduler.module,v 1.11.2.18 2010/10/18 13:06:58 sgabe Exp $
 
-
 /**
  * @file
  * Simplenews Scheduler module allows a schedule to be set 
@@ -12,7 +11,7 @@
  * NEWSLETTER SEND COMMAND
  */
 define('SIMPLENEWS_COMMAND_SEND_SCHEDULE', 3);
-
+define('SIMPLENEWS_COMMAND_SEND_NONE',4);
 /**
  * Implementation of hook_theme().
  */
@@ -42,11 +41,7 @@ function simplenews_scheduler_menu() {
 function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
   global $user;
   // if this is an edition, then we should be fiddling with it, only the parent.
-  $node = node_load(arg(1));
-  if($node->simplenews_scheduler_edition) {
-    drupal_set_message(t('You have been redirected to the original newsletter'));
-    drupal_goto('node/'.$node->simplenews_scheduler_edition['pid'].'/simplenews');
-  }
+
   
   // Add schedule settings to the newsletter edit form.
   if (isset($form['simplenews']) && user_access('send scheduled newsletters') && !isset($node->simplenews_scheduler_edition)) {
@@ -55,10 +50,13 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
     // Set the default values.
     $form['#submit'][]="simplenews_scheduler_submit";
 
+    $scheduler = array();
     $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE nid = %d", arg(1));
     $row = db_fetch_array($result);
     if ($row) {
       $scheduler = $row;
+    } else {
+      $scheduler['activated'] = 0;
     }
     
     $form['simplenews']['send']['#options'][SIMPLENEWS_COMMAND_SEND_SCHEDULE] = t('Send newsletter according to schedule');
@@ -67,28 +65,34 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
     $form['simplenews']['scheduler'] = array('#type' => 'fieldset', '#title' => t('Schedule details'), '#attributes' => array('class' => 'schedule_info'), '#collapsible' => FALSE, '#collapsed' => FALSE, '#tree' => TRUE);
     // Display settings only if this is not an edition.
     if (! isset($form['#node']->simplenews_scheduler_edition)) {
-      $form['simplenews']['scheduler']['interval'] = array('#type' => 'select', 
+      $form['simplenews']['scheduler']['send_interval'] = array('#type' => 'select', 
                                                            '#title' => t('Send once per'), 
                                                            '#options' => array('hour' => t('Hour'), 
                                                                                'day' => t('Day'), 
                                                                                'week' => t('Week'), 
                                                                                'month' => t('Month')), 
                                                            '#description' => t('Interval to send at'), 
-                                                           '#default_value' => $scheduler['interval']);
+                                                           '#default_value' => isset($scheduler['send_interval']) ? $scheduler['send_interval'] : 'week' );
                                                            
       // If there is no default value, use the current time for start.
-      $date_start = $scheduler['start_date'] ? $scheduler['start_date'] : time();
+      $date_start = isset($scheduler['start_date']) ? $scheduler['start_date'] : time();
       // and Mon, 30 Dec 2013 23:59:59 GMT for stop, that should be enough.
-      $date_stop = $scheduler['stop_date'] ? $scheduler['stop_date'] : 1388447999;
-      // Convert dates to valid date objects.
-      if ($form['#node']->build_mode == 1) {
-        $date_start = date_make_date($date_start, NULL, DATE_DATETIME);
-        $date_stop = date_make_date($date_stop, NULL, DATE_DATETIME);
+      $date_stop = isset($scheduler['stop_date']) ? $scheduler['stop_date'] : 1388447999;
+      $form_date = false;
+      if(isset($form['#node'])) {
+        // Convert dates to valid date objects.
+        if ($form['#node']->build_mode == 1) {
+          $date_start = date_make_date($date_start, NULL, DATE_DATETIME);
+          $date_stop = date_make_date($date_stop, NULL, DATE_DATETIME);
+          $form_date= true;
+        }
       }
-      else {
+      
+      if(!$form_date) {
         $date_start = date_make_date($date_start, date_default_timezone_name(), DATE_UNIX);
         $date_stop = date_make_date($date_stop, date_default_timezone_name(), DATE_UNIX);
       }
+
       // Translate formatted date results.
       $date_str_start = date_format_date($date_start, 'custom', 'Y-m-d H:i');
       $date_str_stop = date_format_date($date_stop, 'custom', 'Y-m-d H:i');
@@ -97,10 +101,10 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
                                  you have your <a href="@site">site timezones</a> 
                                  configured and <a href="@user">user timezone</a> 
                                  configured.', array('@site' => url('admin/settings/date-time'), '@user' => url('user/' . $user->uid . '/edit'))));
-      $form['simplenews']['scheduler']['stop'] = array('#type' => 'radios', '#title' => t('Stop sending'), '#default_value' => $scheduler['stop'] ? $scheduler['stop'] : 0, '#options' => array(t('Never'), t('On a given date'), t('After a maximum number of editions')), '#attributes' => array('class' => 'simplenews-command-stop'));
+      $form['simplenews']['scheduler']['stop_type'] = array('#type' => 'radios', '#title' => t('Stop sending'), '#default_value' => isset($scheduler['stop_type']) ? $scheduler['stop_type'] : 0, '#options' => array(t('Never'), t('On a given date'), t('After a maximum number of editions')), '#attributes' => array('class' => 'simplenews-command-stop'));
       $form['simplenews']['scheduler']['stop_date'] = array('#type' => 'date_select', '#default_value' => $date_str_stop, '#date_type' => DATE_DATETIME, '#date_format' => 'm-d-Y - H:i', '#date_timezone' => date_default_timezone_name(), '#date_label_position' => 'none', '#date_increment' => 1, '#date_year_range' => '2010:+3', '#required' => TRUE);
-      $form['simplenews']['scheduler']['stop_edition'] = array('#type' => 'textfield', '#default_value' => $scheduler['stop_edition'] ? $scheduler['stop_edition'] : 0, '#size' => 5, '#maxlength' => 5, '#required' => TRUE, '#description' => t('The maximum number of editions which should be sent.'));
-      $form['simplenews']['scheduler']['php_eval'] = array('#type' => 'textarea', '#title' => t('Additionally only create newsletter edition if the following code returns true'), '#default_value' => $scheduler['php_eval'], '#required' => FALSE, '#description' => t('Additionally evaluate the following PHP code and only issue the newsletter edition if it returns true. Do not include <?PHP ?>'));
+      $form['simplenews']['scheduler']['stop_edition'] = array('#type' => 'textfield', '#default_value' => isset($scheduler['stop_edition']) ? $scheduler['stop_edition'] : 0, '#size' => 5, '#maxlength' => 5, '#required' => TRUE, '#description' => t('The maximum number of editions which should be sent.'));
+      $form['simplenews']['scheduler']['php_eval'] = array('#type' => 'textarea', '#title' => t('Additionally only create newsletter edition if the following code returns true'), '#default_value' => isset($scheduler['php_eval']) ? $scheduler['php_eval'] : '', '#required' => FALSE, '#description' => t('Additionally evaluate the following PHP code and only issue the newsletter edition if it returns true. Do not include <?PHP ?>'));
       $form['simplenews']['scheduler']['activated'] = array('#type' => 'hidden', '#value' => $scheduler['activated']);
     }
     else {
@@ -133,11 +137,11 @@ function simplenews_scheduler_submit($form, &$form_state) {
   $nid = $form_state['values']['nid'];  
   $node = node_load($nid);
   
-   // Get Scheduler values from Simplenews.
+  // Get Scheduler values from Simplenews.
   $send = $form_state['values']['simplenews']['send'];
-  $interval = $form_state['values']['simplenews']['scheduler']['interval'];
+  $interval = $form_state['values']['simplenews']['scheduler']['send_interval'];
   $start_date = $form_state['values']['simplenews']['scheduler']['start_date'];
-  $stop = $form_state['values']['simplenews']['scheduler']['stop']; // number of editions
+  $stop = $form_state['values']['simplenews']['scheduler']['stop_type']; // number of editions
   $stop_date = $form_state['values']['simplenews']['scheduler']['stop_date'];
   $stop_edition = $form_state['values']['simplenews']['scheduler']['stop_edition'];
   $php_eval = $form_state['values']['simplenews']['scheduler']['php_eval'];
@@ -154,14 +158,16 @@ function simplenews_scheduler_submit($form, &$form_state) {
   // Convert the user time back to GMT time and use that as our record.
   $start_date = date_convert($start_date, DATE_DATETIME, DATE_UNIX, date_default_timezone_name());
   $stop_date = date_convert($stop_date, DATE_DATETIME, DATE_UNIX, date_default_timezone_name());
-  if (! $node->is_edition) {
-    $result = db_query("INSERT INTO {simplenews_scheduler} (nid, activated, interval, 
-                           start_date, stop, stop_date, stop_edition, php_eval ) 
-                             VALUES (%d, %d, '%s', %d, %d, %d, %d, '%s')                             
-                      ON DUPLICATE KEY UPDATE last_run = 0, activated = %d, interval = '%s', start_date = %d, stop = %d, stop_date = %d, stop_edition = %d, php_eval = '%s' ", $nid, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $php_eval, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $php_eval, $nid);
-    if (! $result) {
-      drupal_set_message(t('Saving or updating schedule settings for <em>@title</em> has been unsuccessful.', array('@title' => $node->title)), 'error');
-    }
+  
+  db_query("DELETE FROM {simplenews_scheduler} WHERE nid = %d", $nid);
+  $result = db_query("INSERT INTO {simplenews_scheduler} (nid, activated, send_interval, start_date, stop_type, stop_date, stop_edition, php_eval ) 
+                         VALUES (%d, %d, '%s', %d, %d, %d, %d, '%s')",                            
+                      $nid, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $php_eval );
+                        
+  if ( ! $result ) {
+    drupal_set_message(t('Saving or updating schedule settings for <em>@title</em> has been unsuccessful.', array('@title' => $node->title)), 'error');
+  } else {
+    drupal_set_message(t('Newsletter Schedule preferences saved'));
   }
 }
 
@@ -169,23 +175,34 @@ function simplenews_scheduler_submit($form, &$form_state) {
  * Implementation of hook_nodeapi().
  */
 function simplenews_scheduler_nodeapi(&$node, $op) {
-  if ($node->nid && in_array($node->type, variable_get('simplenews_content_types', array('simplenews')))) {
+  if (in_array($node->type, variable_get('simplenews_content_types', array('simplenews')))) {
     switch ($op) {
       case 'load' :
-        $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE nid = %d", $node->nid);
-        $row = db_fetch_array($result);
-        if ($row) {
-          $node->simplenews_scheduler = $row;
-        }
-        else {
-          // Maybe this was an edition that has been sent?
-          $result = db_query("SELECT * FROM {simplenews_scheduler_editions} WHERE eid = %d", $node->nid);
+        if(isset($node->nid)) {
+          $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE nid = %d", $node->nid);
           $row = db_fetch_array($result);
           if ($row) {
-            $node->simplenews_scheduler_edition = $row;
+            $node->simplenews_scheduler = $row;
+          }
+          else {
+            // Maybe this was an edition that has been sent?
+            $result = db_query("SELECT * FROM {simplenews_scheduler_editions} WHERE eid = %d", $node->nid);
+            $row = db_fetch_array($result);
+            if ($row) {
+              $node->simplenews_scheduler_edition = $row;
+            }
           }
         }
         break;
+     case 'view':
+      // leaving this out until we figure out a nicer UI for showing this.
+      // this should be letting you know that you are viewing a generated newsletter, not the original
+     /*  if(isset($node->simplenews_scheduler_edition)) {
+         drupal_set_message(t('You have been redirected to the original newsletter'));
+         drupal_goto('node/'.$node->simplenews_scheduler_edition['pid'].'/simplenews');
+       }
+      */
+     break;
     }
   }
 }
@@ -208,7 +225,7 @@ function simplenews_scheduler_cron() {
   foreach ($intervals as $interval => $seconds) {
     // Check daily items that need to be sent.
     $now_time = gmmktime();
-    $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE activated = 1 AND %d - last_run > %d AND interval = '%s' AND start_date <= %d AND %d < stop_date", $now_time, $seconds, $interval, $now_time, $now_time);
+    $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE activated = 1 AND %d - last_run > %d AND send_interval = '%s' AND start_date <= %d AND %d < stop_date", $now_time, $seconds, $interval, $now_time, $now_time);
     while ($row = db_fetch_array($result)) {
       // does this newsletter have something to evaluate to check running condition?
       if(strlen($row['php_eval'])) {
@@ -327,6 +344,21 @@ function _simplenews_scheduler_tab_permission($node) {
 }
 
 /**
+  * Use the Drupal API for finding the Full HTML input format, this is what the subsequent newsletter editions
+  * need to be set to.
+  */
+function _simplenews_scheduler_get_full_html_format() {
+  $formats = filter_formats();
+
+  foreach($formats as $index => $format) {
+    if(stristr($format->name, 'Full HTML')) {
+      return $index;
+    }
+  }
+  
+  return false;
+}
+/**
  * Create a new newsletter edition.
  */
 function _simplenews_scheduler_new_edition($nid) {
@@ -341,15 +373,16 @@ function _simplenews_scheduler_new_edition($nid) {
   $terms = $node->taxonomy;
   
   // Output format for all newly created items should just be Full HTML, incase of Views output etc.
-  if ($format_id = db_result(db_query('SELECT format FROM {filter_formats} WHERE name like "full html"'))) {
+  if ($format_id = _simplenews_scheduler_get_full_html_format() ) {
     $node->format = $format_id;
   }
+  
   // Trigger it for sending.
   $node->simplenews['send'] = 1;
     
   // Check upon if sending should stop with a given edition number.
-  $result = db_fetch_array(db_query("SELECT stop, stop_edition FROM {simplenews_scheduler} WHERE nid = %d", $nid));
-  $stop = $result['stop'];
+  $result = db_fetch_array(db_query("SELECT stop_type, stop_edition FROM {simplenews_scheduler} WHERE nid = %d", $nid));
+  $stop = $result['stop_type'];
   $stop_edition = $result['stop_edition'];
   // Don't create new edition if the edition number exceeds the given maximum value.
   if (($stop == 2 && $serial <= $stop_edition) || $stop != 2) {
@@ -388,12 +421,15 @@ function _simplenews_scheduler_new_edition($nid) {
  * Helper fucntion to get the identifier of newsletter.
  */
 function _simplenews_scheduler_get_pid($node) {
+  
+  $nid = false;
+  
   // First assume this is a newsletter edition,
-  if ($node->simplenews_scheduler_edition) {
+  if (isset($node->simplenews_scheduler_edition)) {
     $nid = $node->simplenews_scheduler_edition['pid'];
   }
   // or this itself is the parent newsletter.
-  elseif ($node->simplenews_scheduler) {
+  elseif (isset($node->simplenews_scheduler)) {
     $nid = $node->nid;
   }
   
