@@ -387,7 +387,7 @@ function _simplenews_scheduler_new_edition($nid) {
   // Don't create new edition if the edition number exceeds the given maximum value.
   if (($stop == 2 && $serial <= $stop_edition) || $stop != 2) {
     // Mark as new with removeing node ID and creation date.
-    unset($node->nid, $node->created);
+    unset($node->nid, $node->created, $node->path);
     // Mark as new edition.
     $node->is_edition = TRUE;
     // Now save it as a new node.
