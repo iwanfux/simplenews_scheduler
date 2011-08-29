@@ -194,6 +194,10 @@ function simplenews_scheduler_nodeapi(&$node, $op) {
           }
         }
         break;
+     case 'delete':
+       // erase the record from the scheduler table so it does not try to send
+       db_query("DELETE FROM {simplenews_scheduler} WHERE nid = %d", $node->nid);
+     break;
      case 'view':
       // leaving this out until we figure out a nicer UI for showing this.
       // this should be letting you know that you are viewing a generated newsletter, not the original
