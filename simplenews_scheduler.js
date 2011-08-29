@@ -50,10 +50,10 @@ Drupal.behaviors.simplenewsSchedulerCommandSend = function (context) {
   var simplenewsSchedulerSendButton = function () {
     switch ($(".simplenews-command-send :radio:checked").val()) {
       case '3':
-        $('#edit-submit').attr({value: Drupal.t('Save and send as scheduled')});
+        $('#simplenews-node-tab-send-form #edit-submit').attr({value: Drupal.t('Save and send as scheduled')});
         break;
       default:
-        $('#edit-submit').attr({value: Drupal.t('Submit')});
+        $('#simplenews-node-tab-send-form #edit-submit').attr({value: Drupal.t('Submit')});
         break;
       break;
     }
