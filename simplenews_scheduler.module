@@ -1,7 +1,4 @@
 <?php
-// $Id: simplenews_scheduler.module,v 1.11.2.18 2010/10/18 13:06:58 sgabe Exp $
-
-
 /**
  * @file
  * Simplenews Scheduler module allows a schedule to be set
