@@ -332,7 +332,6 @@ function simplenews_scheduler_cron() {
       $eid = _simplenews_scheduler_new_edition($row["nid"]);
       if (isset($eid)) {
         db_query("UPDATE {simplenews_scheduler} SET last_run = %d WHERE nid = %d", $this_run, $pid);
-        db_query("INSERT INTO {simplenews_scheduler_editions} (eid, pid, date_issued) VALUES (%d, %d, %d)", $eid, $pid, $now_time);
         $node = node_load($eid);
         // Send the newsletter edition to each subscriber of the parent newsletter
         // get the tid of this newsletter and generate a list of accounts to send this new newsletter to, based on the parent newsletter.
@@ -504,7 +503,11 @@ function _simplenews_scheduler_new_edition($nid) {
     if ($newsletter = db_fetch_array(db_query("SELECT * from {simplenews_newsletters} WHERE nid = %d", $nid))) {
       db_query("UPDATE {simplenews_newsletters} SET s_status = 1, tid = %d, s_format = '%s', priority = %d, receipt = %d WHERE nid=%d", $newsletter['tid'], $newsletter['s_format'], $newsletter['priority'], $newsletter['receipt'], $node->nid);
     }
-    
+
+    // Record the new edition.
+    $now_time = gmmktime();
+    db_query("INSERT INTO {simplenews_scheduler_editions} (eid, pid, date_issued) VALUES (%d, %d, %d)", $node->nid, $nid, $now_time);
+
     return $node->nid;
   }
 }
