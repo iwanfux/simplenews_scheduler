@@ -420,9 +420,11 @@ function simplenews_scheduler_node_page($node) {
  * Check whether to display the Scheduled Newsletter tab.
  */
 function _simplenews_scheduler_tab_permission($node) {
-  $pid = _simplenews_scheduler_get_pid($node);
   if (in_array($node->type, variable_get('simplenews_content_types', array('simplenews'))) && user_access('overview scheduled newsletters')) {
-    return TRUE;
+    $pid = _simplenews_scheduler_get_pid($node);
+    // Only display the tab if there is a parent template newsletter or if this
+    // is itself a template newsletter.
+    return !empty($pid);
   }
   else {
     return FALSE;
