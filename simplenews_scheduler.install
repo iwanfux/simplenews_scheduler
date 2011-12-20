@@ -158,11 +158,11 @@ function simplenews_scheduler_update_6004() {
 /**
  * Implementation of hook_update_N().
   // attempt to change to pgsql compatible strings
-  // #970942    
+  // #970942
  */
 function simplenews_scheduler_update_6005() {
   $ret = array();
-        
+
   db_change_field($ret, 'simplenews_scheduler', 'stop', 'stop_type', array(
     'type' => 'int',
     'not null' => TRUE,
@@ -173,8 +173,8 @@ function simplenews_scheduler_update_6005() {
 	'length' => 10,
     )
   );
-  
-  
+
+
   return $ret;
 }
 

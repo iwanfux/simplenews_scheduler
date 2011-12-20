@@ -58,7 +58,7 @@ Drupal.behaviors.simplenewsSchedulerCommandSend = function (context) {
       break;
     }
   }
-  
+
   // Update send button at page load and when a send option is selected.
   $(function() { simplenewsSchedulerSendButton(); });
   $(".simplenews-command-send").click( function() { simplenewsSchedulerSendButton(); });
