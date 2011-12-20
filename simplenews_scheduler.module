@@ -496,6 +496,8 @@ function _simplenews_scheduler_new_edition($nid) {
   // Render node content.
   $node = node_build_content($node, FALSE, FALSE);
   $content = drupal_render($node->content);
+  // Keep the teaser in sync with the rendered node content.
+  $node->teaser = node_teaser($node->body, isset($node->format) ? $node->format : NULL);
 
   // Restore the original user if necessary.
   if (isset($original_user)) {
