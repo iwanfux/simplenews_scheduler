@@ -10,19 +10,6 @@
  */
 define('SIMPLENEWS_COMMAND_SEND_SCHEDULE', 3);
 define('SIMPLENEWS_COMMAND_SEND_NONE', 4);
-/**
- * Implementation of hook_theme().
- */
-function simplenews_scheduler_theme() {
-  return array(
-    'simplenews_scheduler_title' => array(
-      'arguments' => array(
-        'title' => NULL,
-        'serial' => NULL,
-      ),
-    ),
-  );
-}
 
 /**
  * Implementation of hook_perm().
@@ -427,15 +414,6 @@ function simplenews_scheduler_node_page($node) {
     $output .= '<p>' . t('No scheduled newsletters have been sent.') . '</p>';
   }
   return $output;
-}
-
-/**
- * Theme the title of the newsletter edition.
- */
-function theme_simplenews_scheduler_title($title, $serial) {
-  return $title." ".t('(edition !edition)', array(
-    '!edition' => $serial
-  ));
 }
 
 /**
