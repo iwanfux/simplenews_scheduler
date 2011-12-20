@@ -180,6 +180,22 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
         '#required' => FALSE,
         '#description' => t('Additionally evaluate the following PHP code and only issue the newsletter edition if it returns true. Do not include &lt;?php ?&gt; tags.'),
       );
+      $form['simplenews']['scheduler']['title'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Title pattern for new edition nodes'),
+        '#description' => t('New edition nodes will have their title set to the above string, with tokens replaced.'),
+        '#required' => TRUE,
+        '#default_value' => isset($scheduler['title']) ? $scheduler['title'] : '[title]',
+      );
+      $form['simplenews']['scheduler']['token_help'] = array(
+        '#title' => t('Replacement patterns'),
+        '#type' => 'fieldset',
+        '#collapsible' => TRUE,
+        '#collapsed' => TRUE,
+      );
+      $form['simplenews']['scheduler']['token_help']['help'] = array(
+        '#value' => theme('token_help', array('node', 'global')),
+      );
       $form['simplenews']['scheduler']['activated'] = array(
         '#type' => 'hidden',
         '#value' => $scheduler['activated'],
@@ -243,6 +259,7 @@ function simplenews_scheduler_submit($form, &$form_state) {
     'stop_date'     => $stop_date,
     'stop_edition'  => $form_state['values']['simplenews']['scheduler']['stop_edition'],
     'php_eval'      => $form_state['values']['simplenews']['scheduler']['php_eval'],
+    'title'         => $form_state['values']['simplenews']['scheduler']['title'],
   );
 
   db_query("DELETE FROM {simplenews_scheduler} WHERE nid = %d", $nid);
@@ -483,6 +500,9 @@ function _simplenews_scheduler_new_edition($nid) {
   if (($stop == 2 && $serial <= $stop_edition) || $stop != 2) {
     // Mark as new with removeing node ID and creation date.
     unset($node->nid, $node->created, $node->path);
+    // Run the title through token replacement.
+    $title_pattern = $node->simplenews_scheduler['title'];
+    $node->title = token_replace($title_pattern, 'node', $node);
     // Mark as new edition.
     $node->is_edition = TRUE;
     // Now save it as a new node.

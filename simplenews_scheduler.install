@@ -51,7 +51,14 @@ function simplenews_scheduler_schema() {
       'php_eval' => array(
         'type' => 'blob',
         'not null' => TRUE
-        )        
+      ),
+      'title' => array(
+        'description' => 'The title of new edition nodes.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
     ),
     'primary key' => array('nid'),
   );
@@ -160,4 +167,22 @@ function simplenews_scheduler_update_6005() {
   return $ret;
 }
 
+/**
+ * Add the title field to the scheduler table.
+ */
+function simplenews_scheduler_update_6006() {
+  $ret = array();
+
+  $field = array(
+    'description' => 'The title of new edition nodes.',
+    'type' => 'varchar',
+    'length' => 255,
+    'not null' => TRUE,
+    'default' => '',
+    'initial' => '[title]', // Set existing schedules to just use the node title.
+  );
+  db_add_field($ret, 'simplenews_scheduler', 'title', $field);
+
+  return $ret;
+}
 
