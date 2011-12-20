@@ -537,11 +537,18 @@ function _simplenews_scheduler_new_edition($nid) {
 }
 
 /**
- * Helper fucntion to get the identifier of newsletter.
+ * Helper function to get the identifier of newsletter.
+ *
+ * @param $node
+ *  The node object for the newsletter.
+ *
+ * @return
+ *  If the node is a newsletter edition, the node id of its parent template
+ *  newsletter; if the node is a template newsletter, its own node id; and
+ *  FALSE if the node is not part of a scheduled newsletter set.
  */
 function _simplenews_scheduler_get_pid($node) {
-
-  $nid = false;
+  $nid = FALSE;
 
   // First assume this is a newsletter edition,
   if (isset($node->simplenews_scheduler_edition)) {
