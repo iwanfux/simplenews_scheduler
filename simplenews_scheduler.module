@@ -217,12 +217,6 @@ function simplenews_scheduler_submit($form, &$form_state) {
   
   // Get Scheduler values from Simplenews.
   $send = $form_state['values']['simplenews']['send'];
-  $interval = $form_state['values']['simplenews']['scheduler']['send_interval'];
-  $start_date = $form_state['values']['simplenews']['scheduler']['start_date'];
-  $stop = $form_state['values']['simplenews']['scheduler']['stop_type']; // number of editions
-  $stop_date = $form_state['values']['simplenews']['scheduler']['stop_date'];
-  $stop_edition = $form_state['values']['simplenews']['scheduler']['stop_edition'];
-  $php_eval = $form_state['values']['simplenews']['scheduler']['php_eval'];
   // Change activation status if necessary.
   switch ($send) {
     case 0 :
@@ -233,13 +227,26 @@ function simplenews_scheduler_submit($form, &$form_state) {
       $activated = 1;
       break;
   }
+
+  $start_date = $form_state['values']['simplenews']['scheduler']['start_date'];
+  $stop_date = $form_state['values']['simplenews']['scheduler']['stop_date'];
   // Convert the user time back to GMT time and use that as our record.
   $start_date = date_convert($start_date, DATE_DATETIME, DATE_UNIX, date_default_timezone_name());
   $stop_date = date_convert($stop_date, DATE_DATETIME, DATE_UNIX, date_default_timezone_name());
   
+  $record = array(
+    'nid'           => $nid,
+    'activated'     => $activated,
+    'send_interval' => $form_state['values']['simplenews']['scheduler']['send_interval'],
+    'start_date'    => $start_date,
+    'stop_type'     => $form_state['values']['simplenews']['scheduler']['stop_type'], // number of edition
+    'stop_date'     => $stop_date,
+    'stop_edition'  => $form_state['values']['simplenews']['scheduler']['stop_edition'],
+    'php_eval'      => $form_state['values']['simplenews']['scheduler']['php_eval'],
+  );
+
   db_query("DELETE FROM {simplenews_scheduler} WHERE nid = %d", $nid);
-  $result = db_query("INSERT INTO {simplenews_scheduler} (nid, activated, send_interval, start_date, stop_type, stop_date, stop_edition, php_eval) 
-                         VALUES (%d, %d, '%s', %d, %d, %d, %d, '%s')", $nid, $activated, $interval, $start_date, $stop, $stop_date, $stop_edition, $php_eval);
+  $result = drupal_write_record('simplenews_scheduler', $record);
   
   if (! $result) {
     drupal_set_message(t('Saving or updating schedule settings for <em>@title</em> has been unsuccessful.', array(
