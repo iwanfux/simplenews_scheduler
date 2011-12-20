@@ -479,8 +479,30 @@ function _simplenews_scheduler_new_edition($nid) {
   if (module_exists('upload')) {
     $files = upload_load($node);
   }
+
+  // Switch to the anonymous user to render node content.
+  // This prevents things like Views admin links from showing in edition node body.
+  global $user;
+  if ($user->uid) {
+    // Store the current user and session so we can restore them.
+    $original_user = $user;
+    $old_state = session_save_session();
+
+    // Disable session saving and load the anonymous user.
+    session_save_session(FALSE);
+    $user = user_load(0);
+  }
+
+  // Render node content.
   $node = node_build_content($node, FALSE, FALSE);
   $content = drupal_render($node->content);
+
+  // Restore the original user if necessary.
+  if (isset($original_user)) {
+    $user = $original_user;
+    session_save_session($old_state);
+  }
+
   // Store taxonomy terms to save later to the node.
   $terms = $node->taxonomy;
   
