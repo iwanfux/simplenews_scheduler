@@ -178,9 +178,7 @@ function simplenews_scheduler_form_alter(&$form, &$form_state, $form_id) {
         '#title' => t('Additionally only create newsletter edition if the following code returns true'),
         '#default_value' => isset($scheduler['php_eval']) ? $scheduler['php_eval'] : '',
         '#required' => FALSE,
-        '#description' => t('Additionally evaluate the following PHP code and only issue the newsletter edition if it returns true. Do not include !phptag', array(
-        '!phptag' => '&lt;?PHP ?&gt;'
-        )),
+        '#description' => t('Additionally evaluate the following PHP code and only issue the newsletter edition if it returns true. Do not include &lt;?php ?&gt; tags.'),
       );
       $form['simplenews']['scheduler']['activated'] = array(
         '#type' => 'hidden',
