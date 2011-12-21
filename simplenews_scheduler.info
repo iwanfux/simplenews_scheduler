@@ -3,5 +3,5 @@ description = "Allows a schedule to be set for sending (and resending) a Simplen
 core = 6.x
 package = Mail
 dependencies[] = simplenews
-dependencies[] = date
+dependencies[] = date_api
 dependencies[] = token
