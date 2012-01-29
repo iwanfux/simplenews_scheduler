@@ -6,14 +6,7 @@
  */
 
 /**
- * Implementation of hook_install().
- */
-function simplenews_scheduler_install() {
-  drupal_install_schema('simplenews_scheduler');
-}
-
-/**
- * Implementation of hook_schema().
+ * Implements hook_schema().
  */
 function simplenews_scheduler_schema() {
   $schema['simplenews_scheduler'] = array(
@@ -42,6 +35,11 @@ function simplenews_scheduler_schema() {
         'description' => 'The interval at which to send, as a text string.',
         'type' => 'varchar',
         'length' => 10,
+      ),
+      'interval_frequency' => array(
+        'type' => 'int',
+        'default' => 1,
+        'not null' => TRUE,
       ),
       'start_date' => array(
         'description' => 'The timestamp at which to start sending editions.',
@@ -108,106 +106,27 @@ function simplenews_scheduler_schema() {
   return $schema;
 }
 
-/**
- * Implementation of hook_uninstall().
+/*
+ * Implements hook_update_last_removed().
  */
-function simplenews_scheduler_uninstall() {
-  // Remove tables.
-  drupal_uninstall_schema('simplenews_scheduler');
-}
-
-/**
- * Implementation of hook_update_N().
- */
-function simplenews_scheduler_update_6000() {
-  $ret = array();
-  db_add_field($ret, 'simplenews_scheduler', 'stop', array('type' => 'int', 'length' => 1, 'not null' => TRUE));
-  db_add_field($ret, 'simplenews_scheduler', 'stop_date', array('type' => 'int', 'length' => 11, 'not null' => TRUE, 'default' => 1577923199));
-  db_add_field($ret, 'simplenews_scheduler', 'stop_edition', array('type' => 'int', 'length' => 10, 'not null' => TRUE, 'default' => 0));
-  $ret[] = update_sql("ALTER TABLE {simplenews_scheduler} CHANGE sched_interval interval VARCHAR(10) NOT NULL DEFAULT '0'");
-  $ret[] = update_sql("ALTER TABLE {simplenews_scheduler} CHANGE sched_start start_date INT(11) NOT NULL DEFAULT '0'");
-  return $ret;
-}
-
-/**
- * Implementation of hook_update_N().
- */
-function simplenews_scheduler_update_6001() {
-  $ret = array();
-  db_drop_field($ret, 'simplenews_scheduler', 'sid');
-  db_add_field($ret, 'simplenews_scheduler', 'activated', array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0));
-  $ret[] = update_sql("ALTER IGNORE TABLE {simplenews_scheduler} CHANGE snid nid INT(11) NOT NULL DEFAULT '0', ADD PRIMARY KEY (nid)");
-  $ret[] = update_sql("ALTER TABLE {simplenews_scheduler_editions} CHANGE edition_snid eid INT(11) NOT NULL DEFAULT '0'");
-  $ret[] = update_sql("ALTER TABLE {simplenews_scheduler_editions} CHANGE snid pid INT(11) NOT NULL DEFAULT '0'");
-  return $ret;
-}
-
-/**
- * Implementation of hook_update_N().
- */
-function simplenews_scheduler_update_6002() {
-  $ret = array();
-  db_drop_field($ret, 'simplenews_scheduler', 'run_limit');
-  db_drop_field($ret, 'simplenews_scheduler', 'run_count');
-  return $ret;
-}
-
-/**
- * Implementation of hook_update_N().
- */
-function simplenews_scheduler_update_6003() {
-  $ret = array();
-  db_add_primary_key($ret, 'simplenews_scheduler_editions', array('eid'));
-  return $ret;
-}
-
-/**
- * Implementation of hook_update_N().
- */
-function simplenews_scheduler_update_6004() {
-  $ret = array();
-  db_add_field($ret, 'simplenews_scheduler', 'php_eval', array('type' => 'blob'));
-  return $ret;
-}
-/**
- * Implementation of hook_update_N().
-  // attempt to change to pgsql compatible strings
-  // #970942
- */
-function simplenews_scheduler_update_6005() {
-  $ret = array();
-
-  db_change_field($ret, 'simplenews_scheduler', 'stop', 'stop_type', array(
-    'type' => 'int',
-    'not null' => TRUE,
-    )
-  );
-  db_change_field($ret, 'simplenews_scheduler', 'interval', 'send_interval', array(
-	'type' => 'varchar',
-	'length' => 10,
-    )
-  );
-
-
-  return $ret;
+function simplenews_scheduler_update_last_removed() {
+  return 6005;
 }
 
 /**
  * Add the title field to the scheduler table.
  */
-function simplenews_scheduler_update_6006() {
-  $ret = array();
+function simplenews_scheduler_update_7000() {
 
-  $field = array(
-    'description' => 'The title of new edition nodes.',
-    'type' => 'varchar',
-    'length' => 255,
-    'not null' => TRUE,
-    'default' => '',
-    'initial' => '[title]', // Set existing schedules to just use the node title.
-  );
-  db_add_field($ret, 'simplenews_scheduler', 'title', $field);
-
-  return $ret;
+  if (!db_field_exists('simplenews_scheduler', 'title')) {
+    $field = array(
+      'description' => 'The title of new edition nodes.',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+      'initial' => '[node:title]',
+    );
+    db_add_field('simplenews_scheduler', 'title', $field);
+  }
 }
-

@@ -45,3 +45,8 @@ Locate the module options under "Send newsletter" on the node edit page. When yo
 Current maintainers:
 * Leigh Morresi (dgtlmoon) - http://drupal.org/user/25027
 * Gabor Seljan (sgabe) - http://drupal.org/user/232117
+
+-- D7 RELEASE NOTES --
+
+A field for interval frequency was integrated. At the moment it's not possible to create
+a custom plaintext version of the newsletter for scheduled sending.
