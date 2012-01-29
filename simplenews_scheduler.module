@@ -81,7 +81,7 @@ function simplenews_scheduler_form_simplenews_node_tab_send_form_alter(&$form, &
       $scheduler['activated'] = 0;
     }
 
-    // check prevents php notice if newsletter was sent and only a checkbox appears in the form 
+    // check prevents php notice if newsletter was sent and only a checkbox appears in the form
     if (isset($form['simplenews']['send'])) {
       $form['simplenews']['send']['#options'] += array(
         SIMPLENEWS_COMMAND_SEND_SCHEDULE => t('Send newsletter according to schedule'),
@@ -89,7 +89,7 @@ function simplenews_scheduler_form_simplenews_node_tab_send_form_alter(&$form, &
       );
       $form['simplenews']['send']['#default_value'] = ($scheduler['activated'] == 1) ? SIMPLENEWS_COMMAND_SEND_SCHEDULE : variable_get('simplenews_send', SIMPLENEWS_COMMAND_SEND_NONE);
     }
-    
+
     // Display settings only if this is not an edition.
     if (!isset($node->simplenews_scheduler_edition)) {
 
@@ -425,7 +425,7 @@ function simplenews_scheduler_node_page($node) {
   drupal_set_title(t('Scheduled newsletter editions'));
   $nid = _simplenews_scheduler_get_pid($node);
   $output = '';
-  
+
   if ($nid == $node->nid) { // This is the template newsletter.
     $output .= '<p>' . t('This is a newsletter template node of which all corresponding editions nodes are based on.') . '</p>';
   }
@@ -441,12 +441,12 @@ function simplenews_scheduler_node_page($node) {
              ->condition('s.pid', $nid)
              ->execute()
              ->fetchAll();
-              
+
   foreach ($result as $row) {
     $node = node_load($row->eid);
     $rows[] = array(l($node->title, 'node/' . $row->eid), format_date($row->date_issued, 'custom', 'Y-m-d H:i'));
   }
-  
+
   // Display a table with all editions.
   $tablecontent = array(
     'header' => array(t('Edition Node'), t('Date sent')),
@@ -456,7 +456,7 @@ function simplenews_scheduler_node_page($node) {
   );
   $output .= theme('table', $tablecontent);
   $output .= theme('pager', array('tags' => 20));
-  
+
   return $output;
 }
 
@@ -508,7 +508,7 @@ function _simplenews_scheduler_new_edition($nid) {
 
   // Don't create new edition if the edition number exceeds the given maximum value.
   if (($stop != 2 || $stop == 2 && $edition_count < $stop_edition)) {
-    
+
     // Load the template node and clone an edition.
     $template_node = node_load($nid);
     $edition_node = simplenews_scheduler_clone_node($template_node);
@@ -525,7 +525,7 @@ function _simplenews_scheduler_new_edition($nid) {
 
     // Save the changes of other modules
     node_save($edition_node);
-    
+
     // Insert edition data.
     $now_time = REQUEST_TIME;
     $values = array(
