@@ -425,6 +425,7 @@ function simplenews_scheduler_node_page($node) {
   drupal_set_title(t('Scheduled newsletter editions'));
   $nid = _simplenews_scheduler_get_pid($node);
   $output = '';
+  $rows = array();
 
   if ($nid == $node->nid) { // This is the template newsletter.
     $output .= '<p>' . t('This is a newsletter template node of which all corresponding editions nodes are based on.') . '</p>';
