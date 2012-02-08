@@ -1,0 +1,90 @@
+<?php
+
+/**
+ * @file
+ * Test for using date fields with Migrate module.
+ */
+
+/**
+ * Test date migration.
+ */
+class SimpleNewsSchedulerNodeCreationTest extends DrupalWebTestCase {
+  protected $privileged_user;
+
+  /**
+   * Provides information about this test.
+   */
+  public static function getInfo() {
+    return array(
+      'name' => 'Simplenews Scheduler newsletter generation test',
+      'description' => 'Testing generation of newsletters',
+      'group' => 'Simplenews Scheduler',
+    );
+  }
+
+  /**
+   * Declars the module dependencies for the test.
+   */
+  function setUp() {
+    parent::setUp( 'simplenews',  'simplenews_scheduler',  'token' , 'date');
+
+    $this->privileged_user = $this->drupalCreateUser(array(
+      'access content',
+      'administer nodes',
+      'create simplenews content',
+      'edit own simplenews content',
+      'send newsletter',
+      'send scheduled newsletters',
+      'overview scheduled newsletters',
+      ));
+    $this->drupalLogin($this->privileged_user);    
+  }
+
+  /**
+   * Basic simplenews newsletter generation test
+   * create a simplenews node,
+   */
+  function testNewsletterGeneration() {
+    $edit = array();
+    $title ="newsletter ".$this->randomName(8);
+
+    $edit = array();
+    $edit['title'] = $title;
+    $edit["body[und][0][value]"] = $this->randomName(16);
+    $this->drupalPost('node/add/simplenews', $edit, t('Save'));        
+    $this->assertText($title);
+
+    preg_match('|node/(\d+)$|', $this->getUrl(), $matches);
+    $node = node_load($matches[1]);
+
+    // make sure it knows no editions created yet
+    $this->drupalGet("node/{$node->nid}/editions");
+    $this->assertText(t("No scheduled newsletter editions have been sent."));
+    
+    // now create the simplenews schedule conig
+    $this->drupalGet("node/{$node->nid}/simplenews");
+    $this->assertText(t("Send newsletter according to schedule"));
+    
+    $edit = array();
+    $edit["simplenews[send]"] = '4';
+    $edit["simplenews[scheduler][interval]"] = "hour";
+    $edit["simplenews[scheduler][start_date][day]"] = "7";
+    $this->drupalPost("node/{$node->nid}/simplenews", $edit, t('Submit'));    
+
+
+    // make sure it knows no editions created yet
+    $this->drupalGet("node/{$node->nid}/editions");
+    $this->assertText(t("No scheduled newsletter editions have been sent."));
+
+    // call our hook to generate it
+    simplenews_scheduler_cron();
+    
+    // see if it was created
+    $this->drupalGet("node/{$node->nid}/editions");
+    $this->assertText($title);
+    $this->assertNoText(t("No scheduled newsletter editions have been sent."));
+    
+  }
+
+
+}
