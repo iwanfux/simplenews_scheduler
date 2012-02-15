@@ -516,7 +516,7 @@ function _simplenews_scheduler_new_edition($nid) {
     $now_time = REQUEST_TIME;
     $values = array(
       'eid' => $edition_node->nid,
-      'pid' => $edition_node->simplenews_scheduler->nid,
+      'pid' => $template_node->nid,
       'date_issued' => $now_time,
     );
     db_insert('simplenews_scheduler_editions')
