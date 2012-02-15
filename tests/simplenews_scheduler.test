@@ -16,7 +16,7 @@ class SimpleNewsSchedulerNodeCreationTest extends DrupalWebTestCase {
    */
   public static function getInfo() {
     return array(
-      'name' => 'Simplenews Scheduler newsletter generation test',
+      'name' => 'Newsletter generation test',
       'description' => 'Testing generation of newsletters',
       'group' => 'Simplenews Scheduler',
     );
@@ -46,7 +46,7 @@ class SimpleNewsSchedulerNodeCreationTest extends DrupalWebTestCase {
    */
   function testNewsletterGeneration() {
     $edit = array();
-    $title ="newsletter ".$this->randomName(8);
+    $title ="newsletter " . $this->randomName(8);
 
     $edit = array();
     $edit['title'] = $title;
@@ -83,7 +83,6 @@ class SimpleNewsSchedulerNodeCreationTest extends DrupalWebTestCase {
     $this->drupalGet("node/{$node->nid}/editions");
     $this->assertText($title);
     $this->assertNoText(t("No scheduled newsletter editions have been sent."));
-    
   }
 
 
