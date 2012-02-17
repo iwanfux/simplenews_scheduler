@@ -325,13 +325,13 @@ function simplenews_scheduler_cron() {
   $now_time = gmmktime();
   $newsletters_to_send = simplenews_scheduler_get_newsletters_due($now_time);
   foreach ($newsletters_to_send as $row) {
-      // Get the node id of the parent newsletter.
-      $pid = $row->nid;
+    // Get the node id of the parent newsletter.
+    $pid = $row->nid;
 
-      // Create a new edition.
-      $eid = _simplenews_scheduler_new_edition($row->nid);
-      // Send it.
-      _simplenews_scheduler_send_new_edition($now_time, $row, $eid);
+    // Create a new edition.
+    $eid = _simplenews_scheduler_new_edition($row->nid);
+    // Send it.
+    _simplenews_scheduler_send_new_edition($now_time, $row, $eid);
   }
 }
 
@@ -549,46 +549,46 @@ function _simplenews_scheduler_get_full_html_format() {
  *  The node id of the new edition node.
  */
 function _simplenews_scheduler_new_edition($nid) {
-    // Load the template node and clone an edition.
-    $template_node = node_load($nid);
-    $edition_node = simplenews_scheduler_clone_node($template_node);
+  // Load the template node and clone an edition.
+  $template_node = node_load($nid);
+  $edition_node = simplenews_scheduler_clone_node($template_node);
 
-    // Run the title through token replacement.
-    $edition_node->title = token_replace($edition_node->title, array('node' => $edition_node));
+  // Run the title through token replacement.
+  $edition_node->title = token_replace($edition_node->title, array('node' => $edition_node));
 
-    // Let other modules change the cloned node too
-    // module_invoke_all('simplenews_scheduler_edition_clone', $edition_node);
+  // Let other modules change the cloned node too
+  // module_invoke_all('simplenews_scheduler_edition_clone', $edition_node);
 
-    // Invoke hook_simplenews_scheduler_cloned_node_alter() to give installed modules a chance to
-    // modify the cloned edition node if necessary before it gets saved.
-    drupal_alter('simplenews_scheduler_cloned_node', $node, $node);
+  // Invoke hook_simplenews_scheduler_cloned_node_alter() to give installed modules a chance to
+  // modify the cloned edition node if necessary before it gets saved.
+  drupal_alter('simplenews_scheduler_cloned_node', $node, $node);
 
-    // Save the changes of other modules
-    node_save($edition_node);
+  // Save the changes of other modules
+  node_save($edition_node);
 
-    // Insert edition data.
-    $now_time = REQUEST_TIME;
-    $values = array(
-      'eid' => $edition_node->nid,
-      'pid' => $template_node->nid,
-      'date_issued' => $now_time,
-    );
-    db_insert('simplenews_scheduler_editions')
-      ->fields($values)
-      ->execute();
+  // Insert edition data.
+  $now_time = REQUEST_TIME;
+  $values = array(
+    'eid' => $edition_node->nid,
+    'pid' => $template_node->nid,
+    'date_issued' => $now_time,
+  );
+  db_insert('simplenews_scheduler_editions')
+    ->fields($values)
+    ->execute();
 
-    // Save taxonomy terms.
-    watchdog('simplenews_sched', 'Saved new node ready to be sent. Node ID: !nid', array(
-      '!nid' => $edition_node->nid,
-    ));
+  // Save taxonomy terms.
+  watchdog('simplenews_sched', 'Saved new node ready to be sent. Node ID: !nid', array(
+    '!nid' => $edition_node->nid,
+  ));
 
-    // Prepare the correct status for Simplenews to pickup.
-    db_update('simplenews_newsletter')
-      ->fields(array('status' => 1))
-      ->condition('nid', $edition_node->nid)
-      ->execute();
+  // Prepare the correct status for Simplenews to pickup.
+  db_update('simplenews_newsletter')
+    ->fields(array('status' => 1))
+    ->condition('nid', $edition_node->nid)
+    ->execute();
 
-    return $edition_node->nid;
+  return $edition_node->nid;
 }
 
 /**
