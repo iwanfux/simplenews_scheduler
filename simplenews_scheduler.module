@@ -340,7 +340,6 @@ function simplenews_scheduler_cron() {
       // Create a new edition.
       $eid = _simplenews_scheduler_new_edition($row->nid);
 
-      if (isset($eid)) {
         // persist last_run
         db_update('simplenews_scheduler')
           ->fields(array('last_run' => $this_run))
@@ -351,7 +350,6 @@ function simplenews_scheduler_cron() {
         $node = node_load($eid);
         module_load_include('inc', 'simplenews', 'includes/simplenews.mail');
         simplenews_add_node_to_spool($node);
-      }
   }
 }
 
