@@ -325,31 +325,13 @@ function simplenews_scheduler_cron() {
   $now_time = gmmktime();
   $newsletters_to_send = simplenews_scheduler_get_newsletters_due($now_time);
   foreach ($newsletters_to_send as $row) {
+      // Get the node id of the parent newsletter.
       $pid = $row->nid;
-      $seconds = $row->seconds;
-
-      // If returns with null don't do anything.
-      $first_run = intval($row->start_date);
-
-      // Because the scheduler runs according to last_run timestamp and the cron
-      // does not run exactly at the scheduled timestamp, this correction fixes
-      // this run's timestamp ($now_time) to the right time by adding a correct interval.
-      $interval_duration = $seconds * $row->interval_frequency;
-      $this_run = $first_run + floor(($now_time - $first_run) / $interval_duration) * $interval_duration;
 
       // Create a new edition.
       $eid = _simplenews_scheduler_new_edition($row->nid);
-
-        // persist last_run
-        db_update('simplenews_scheduler')
-          ->fields(array('last_run' => $this_run))
-          ->condition('nid', $pid)
-          ->execute();
-
-        // Send the newsletter edition to each subscriber of the parent newsletter.
-        $node = node_load($eid);
-        module_load_include('inc', 'simplenews', 'includes/simplenews.mail');
-        simplenews_add_node_to_spool($node);
+      // Send it.
+      _simplenews_scheduler_send_new_edition($now_time, $row, $eid);
   }
 }
 
@@ -421,6 +403,42 @@ function simplenews_scheduler_get_newsletters_due($timestamp) {
     }
   }
   return $newsletters;
+}
+
+/**
+ * Helper for hook_cron() to send a new edition.
+ *
+ * @param $now_time
+ *  The time of the operation. Usually the current time unless testing.
+ * @param $row
+ *  A row of data from {simplenews_scheduler}, as returned by
+ *  simplenews_scheduler_get_newsletters_due().
+ * @param $eid
+ *  The node id of the new edition to send. This should already have been
+ *  created by _simplenews_scheduler_new_edition().
+ */
+function _simplenews_scheduler_send_new_edition($now_time, $row, $eid) {
+  $pid = $row->nid;
+  $seconds = $row->seconds;
+  // If returns with null don't do anything.
+  $first_run = intval($row->start_date);
+
+  // Because the scheduler runs according to last_run timestamp and the cron
+  // does not run exactly at the scheduled timestamp, this correction fixes
+  // this run's timestamp ($now_time) to the right time by adding a correct interval.
+  $interval_duration = $seconds * $row->interval_frequency;
+  $this_run = $first_run + floor(($now_time - $first_run) / $interval_duration) * $interval_duration;
+
+  // persist last_run
+  db_update('simplenews_scheduler')
+    ->fields(array('last_run' => $this_run))
+    ->condition('nid', $pid)
+    ->execute();
+
+  // Send the newsletter edition to each subscriber of the parent newsletter.
+  $node = node_load($eid);
+  module_load_include('inc', 'simplenews', 'includes/simplenews.mail');
+  simplenews_add_node_to_spool($node);
 }
 
 /**
