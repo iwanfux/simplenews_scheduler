@@ -321,34 +321,12 @@ function simplenews_scheduler_node_view($node) {
  * and cloning the node into edition nodes which will be sent.
  */
 function simplenews_scheduler_cron() {
-  // Set the default intervals for scheduling.
-  $intervals['hour'] = 3600;
-  $intervals['day'] = 86400;
-  $intervals['week'] = $intervals['day'] * 7;
-  $intervals['month'] = $intervals['day'] * date_days_in_month(date('Y'), date('m'));
-
-  foreach ($intervals as $interval => $seconds) {
-    // Check daily items that need to be sent.
-    $now_time = gmmktime();
-    $sql = "SELECT * FROM {simplenews_scheduler} ";
-    $sql .= "WHERE activated = :active ";
-    $sql .= "AND :now - last_run > :interval ";
-    $sql .= "AND send_interval = :frequency ";
-    $sql .= "AND start_date <= :now ";
-    $sql .= "AND (stop_date > :now OR stop_date = 0)";
-
-    $result = db_query($sql, array(':active' => 1, ':now' => $now_time, ':interval' => $seconds, ':frequency' => $interval));
-
-    foreach ($result as $row) {
-      // does this newsletter have something to evaluate to check running condition?
-      if (strlen($row->php_eval)) {
-        $eval_result = eval($row->php_eval);
-        if (!$eval_result) {
-          continue;
-        }
-      }
-
+  // Get the newsletters that need to be sent at this time.
+  $now_time = gmmktime();
+  $newsletters_to_send = simplenews_scheduler_get_newsletters_due($now_time);
+  foreach ($newsletters_to_send as $row) {
       $pid = $row->nid;
+      $seconds = $row->seconds;
 
       // If returns with null don't do anything.
       $first_run = intval($row->start_date);
@@ -374,8 +352,59 @@ function simplenews_scheduler_cron() {
         module_load_include('inc', 'simplenews', 'includes/simplenews.mail');
         simplenews_add_node_to_spool($node);
       }
+  }
+}
+
+/**
+ * Get the newsletters that need to have new editions sent.
+ *
+ * This is a helper function for hook_cron that has the current date abstracted
+ * out so it can be tested.
+ *
+ * @param $timestamp
+ *   A unix timestamp at which to determine which newsletters are due to be
+ *   sent. In ordinary operation this should be the current time.
+ *
+ * @return
+ *  An array of newsletter data arrays in the form of rows from the
+ *  {simplenews_scheduler} table, keyed by newsletter nid.
+ */
+function simplenews_scheduler_get_newsletters_due($timestamp) {
+  // Set the default intervals for scheduling.
+  $intervals['hour'] = 3600;
+  $intervals['day'] = 86400;
+  $intervals['week'] = $intervals['day'] * 7;
+  $intervals['month'] = $intervals['day'] * date_days_in_month(date('Y'), date('m'));
+
+  $newsletters = array();
+  foreach ($intervals as $interval => $seconds) {
+    // Check daily items that need to be sent.
+    $sql = "SELECT * FROM {simplenews_scheduler} ";
+    $sql .= "WHERE activated = :active ";
+    $sql .= "AND :now - last_run > :interval ";
+    $sql .= "AND send_interval = :frequency ";
+    $sql .= "AND start_date <= :now ";
+    $sql .= "AND (stop_date > :now OR stop_date = 0)";
+
+    $result = db_query($sql, array(':active' => 1, ':now' => $timestamp, ':interval' => $seconds, ':frequency' => $interval));
+
+    foreach ($result as $row) {
+      // does this newsletter have something to evaluate to check running condition?
+      if (strlen($row->php_eval)) {
+        $eval_result = eval($row->php_eval);
+        if (!$eval_result) {
+          continue;
+        }
+      }
+
+      // Add the number of seconds the newsletter's interval represents.
+      $row->seconds = $seconds;
+
+      $pid = $row->nid;
+      $newsletters[$pid] = $row;
     }
   }
+  return $newsletters;
 }
 
 /**
