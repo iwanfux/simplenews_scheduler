@@ -389,6 +389,25 @@ function simplenews_scheduler_get_newsletters_due($timestamp) {
     $result = db_query($sql, array(':active' => 1, ':now' => $timestamp, ':interval' => $seconds, ':frequency' => $interval));
 
     foreach ($result as $row) {
+      // The node id of the parent node.
+      $pid = $row->nid;
+
+      // Check upon if sending should stop with a given edition number.
+      $stop = $row->stop_type;
+      $stop_edition = $row->stop_edition;
+
+      $count = db_select('simplenews_scheduler_editions', 'e')
+        ->fields('e', array('eid'))
+        ->condition('pid', $pid)
+        ->execute()
+        ->fetchAll();
+      $edition_count = count($count);
+
+      // Don't create new edition if the edition number would exceed the given maximum value.
+      if ($stop == 2 && $edition_count >=  $stop_edition) {
+        continue;
+      }
+
       // does this newsletter have something to evaluate to check running condition?
       if (strlen($row->php_eval)) {
         $eval_result = eval($row->php_eval);
@@ -400,7 +419,6 @@ function simplenews_scheduler_get_newsletters_due($timestamp) {
       // Add the number of seconds the newsletter's interval represents.
       $row->seconds = $seconds;
 
-      $pid = $row->nid;
       $newsletters[$pid] = $row;
     }
   }
@@ -504,26 +522,17 @@ function _simplenews_scheduler_get_full_html_format() {
 
 /**
  * Create a new newsletter edition based on the master edition of this newsletter.
+ *
+ * This does no checking of whether a new edition should be made; it's up to
+ * the caller to determine this first.
+ *
+ * @param $nid
+ *  The node id of the parent newsletter node to use as a template.
+ *
+ * @return
+ *  The node id of the new edition node.
  */
 function _simplenews_scheduler_new_edition($nid) {
-  // Check upon if sending should stop with a given edition number.
-  $result = db_select('simplenews_scheduler', 's')
-    ->fields('s', array('stop_type', 'stop_edition'))
-    ->condition('nid', $nid)
-    ->execute()
-    ->fetchAssoc();
-  $stop = $result['stop_type'];
-  $stop_edition = $result['stop_edition'];
-
-  $count = db_select('simplenews_scheduler_editions', 'e')
-    ->fields('e', array('eid'))
-    ->condition('pid', $nid)
-    ->execute()
-    ->fetchAll();
-  $edition_count = count($count);
-
-  // Don't create new edition if the edition number exceeds the given maximum value.
-  if (($stop != 2 || $stop == 2 && $edition_count < $stop_edition)) {
     // Load the template node and clone an edition.
     $template_node = node_load($nid);
     $edition_node = simplenews_scheduler_clone_node($template_node);
@@ -564,7 +573,6 @@ function _simplenews_scheduler_new_edition($nid) {
       ->execute();
 
     return $edition_node->nid;
-  }
 }
 
 /**
