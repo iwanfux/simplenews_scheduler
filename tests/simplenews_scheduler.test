@@ -68,8 +68,16 @@ class SimpleNewsSchedulerNodeCreationTest extends DrupalWebTestCase {
     $edit = array();
     $edit["simplenews[send]"] = '4';
     $edit["simplenews[scheduler][interval]"] = "hour";
-    $edit["simplenews[scheduler][start_date][day]"] = "7";
-    $this->drupalPost("node/{$node->nid}/simplenews", $edit, t('Submit'));    
+
+    // Specify a fixed start time in the past to be able to have a known edition
+    // creation time that can be checked.
+    $edit["simplenews[scheduler][start_date][year]"] = '2012';
+    $edit["simplenews[scheduler][start_date][month]"] = '3';
+    $edit["simplenews[scheduler][start_date][day]"] = '1';
+    $edit["simplenews[scheduler][start_date][hour]"] = '14';
+    $edit["simplenews[scheduler][start_date][minute]"] = '05';
+
+    $this->drupalPost("node/{$node->nid}/simplenews", $edit, t('Submit'));
 
 
     // make sure it knows no editions created yet
@@ -83,6 +91,13 @@ class SimpleNewsSchedulerNodeCreationTest extends DrupalWebTestCase {
     $this->drupalGet("node/{$node->nid}/editions");
     $this->assertText($title);
     $this->assertNoText(t("No scheduled newsletter editions have been sent."));
+
+    // Go to node and verify creation time. Due to the breadcrumb, this is the
+    // second link with the label on the page.
+    $this->clickLink($title, 1);
+
+    $this->assertText(t('This is a newsletter edititon. View the the master template of this newsletter here'));
+    $this->assertText(t('Submitted by @name on Fri, 03/02/2012 - 14:05', array('@name' => format_username($this->privileged_user))));
   }
 
 

@@ -324,15 +324,41 @@ function simplenews_scheduler_cron() {
   // Get the newsletters that need to be sent at this time.
   $now_time = gmmktime();
   $newsletters_to_send = simplenews_scheduler_get_newsletters_due($now_time);
-  foreach ($newsletters_to_send as $row) {
-    // Get the node id of the parent newsletter.
-    $pid = $row->nid;
+  foreach ($newsletters_to_send as $newsletter_parent_data) {
+    $edition_time = simplenews_scheduler_calculate_edition_time($newsletter_parent_data, $now_time);
 
     // Create a new edition.
-    $eid = _simplenews_scheduler_new_edition($row->nid);
+    $eid = _simplenews_scheduler_new_edition($newsletter_parent_data->nid, $edition_time);
+
     // Send it.
-    _simplenews_scheduler_send_new_edition($now_time, $row, $eid);
+    _simplenews_scheduler_send_new_edition($edition_time, $newsletter_parent_data, $eid);
   }
+}
+
+/**
+ * Calculates the next edition time.
+ *
+ * Because the scheduler runs according to last_run timestamp and the cron
+ * does not run exactly at the scheduled timestamp, this correction fixes
+ * this run's timestamp ($now_time) to the right time by adding a correct
+ * interval.
+ *
+ * @param $row
+ *   A row of data from {simplenews_scheduler}, as returned by
+ *   simplenews_scheduler_get_newsletters_due().
+ * @param $now_time
+ *   (Optional) The time of the operation, defaults to current time.
+ *
+ * @return
+ *   The calculcated creation time of the newsletter edition.
+ */
+function simplenews_scheduler_calculate_edition_time($row, $now_time = NULL) {
+  if ($now_time === NULL) {
+    $now_time = REQUEST_TIME;
+  }
+  $first_run = intval($row->start_date);
+  $interval_duration = $row->seconds * $row->interval_frequency;
+  return $first_run + floor(($now_time - $first_run) / $interval_duration) * $interval_duration;
 }
 
 /**
@@ -408,7 +434,7 @@ function simplenews_scheduler_get_newsletters_due($timestamp) {
 /**
  * Helper for hook_cron() to send a new edition.
  *
- * @param $now_time
+ * @param $edition_time
  *  The time of the operation. Usually the current time unless testing.
  * @param $row
  *  A row of data from {simplenews_scheduler}, as returned by
@@ -417,21 +443,12 @@ function simplenews_scheduler_get_newsletters_due($timestamp) {
  *  The node id of the new edition to send. This should already have been
  *  created by _simplenews_scheduler_new_edition().
  */
-function _simplenews_scheduler_send_new_edition($now_time, $row, $eid) {
+function _simplenews_scheduler_send_new_edition($edition_time, $row, $eid) {
   $pid = $row->nid;
-  $seconds = $row->seconds;
-  // If returns with null don't do anything.
-  $first_run = intval($row->start_date);
-
-  // Because the scheduler runs according to last_run timestamp and the cron
-  // does not run exactly at the scheduled timestamp, this correction fixes
-  // this run's timestamp ($now_time) to the right time by adding a correct interval.
-  $interval_duration = $seconds * $row->interval_frequency;
-  $this_run = $first_run + floor(($now_time - $first_run) / $interval_duration) * $interval_duration;
 
   // persist last_run
   db_update('simplenews_scheduler')
-    ->fields(array('last_run' => $this_run))
+    ->fields(array('last_run' => $edition_time))
     ->condition('nid', $pid)
     ->execute();
 
@@ -543,15 +560,19 @@ function _simplenews_scheduler_get_full_html_format() {
  * the caller to determine this first.
  *
  * @param $nid
- *  The node id of the parent newsletter node to use as a template.
+ *   The node id of the parent newsletter node to use as a template.
+ * @param $edition_time
+ *   Desired edition creation time.
  *
  * @return
  *  The node id of the new edition node.
  */
-function _simplenews_scheduler_new_edition($nid) {
+function _simplenews_scheduler_new_edition($nid, $edition_time) {
   // Load the template node and clone an edition.
   $template_node = node_load($nid);
   $edition_node = simplenews_scheduler_clone_node($template_node);
+  // Set the node's creation time as the given timestamp.
+  $edition_node->created = $edition_time;
 
   // Run the title through token replacement.
   $edition_node->title = token_replace($edition_node->title, array('node' => $edition_node));
