@@ -37,7 +37,7 @@ class SimpleNewsSchedulerNodeCreationTest extends DrupalWebTestCase {
       'send scheduled newsletters',
       'overview scheduled newsletters',
       ));
-    $this->drupalLogin($this->privileged_user);    
+    $this->drupalLogin($this->privileged_user);
   }
 
   /**
@@ -51,7 +51,7 @@ class SimpleNewsSchedulerNodeCreationTest extends DrupalWebTestCase {
     $edit = array();
     $edit['title'] = $title;
     $edit["body[und][0][value]"] = $this->randomName(16);
-    $this->drupalPost('node/add/simplenews', $edit, t('Save'));        
+    $this->drupalPost('node/add/simplenews', $edit, t('Save'));
     $this->assertText($title);
 
     preg_match('|node/(\d+)$|', $this->getUrl(), $matches);
@@ -60,22 +60,24 @@ class SimpleNewsSchedulerNodeCreationTest extends DrupalWebTestCase {
     // Make sure it knows no editions created yet.
     $this->drupalGet("node/{$node->nid}/editions");
     $this->assertText(t("No scheduled newsletter editions have been sent."));
-    
+
     // Now create the simplenews schedule configuration.
     $this->drupalGet("node/{$node->nid}/simplenews");
     $this->assertText(t("Send newsletter according to schedule"));
-    
+
     $edit = array();
     $edit["simplenews[send]"] = '4';
     $edit["simplenews[scheduler][interval]"] = "hour";
 
-    // Specify a fixed start time in the past to be able to have a known edition
-    // creation time that can be checked.
-    $edit["simplenews[scheduler][start_date][year]"] = '2012';
-    $edit["simplenews[scheduler][start_date][month]"] = '3';
-    $edit["simplenews[scheduler][start_date][day]"] = '1';
-    $edit["simplenews[scheduler][start_date][hour]"] = '14';
-    $edit["simplenews[scheduler][start_date][minute]"] = '05';
+    // Specify a start time 30 minutes in the past to be able to have a known
+    // edition creation time that can be checked.
+    $date = new DateTime();
+    $date->sub(new DateInterval('PT30M'));
+    $edit["simplenews[scheduler][start_date][year]"]    = $date->format('Y');
+    $edit["simplenews[scheduler][start_date][month]"]   = $date->format('n');
+    $edit["simplenews[scheduler][start_date][day]"]     = $date->format('j');
+    $edit["simplenews[scheduler][start_date][hour]"]    = $date->format('G');
+    $edit["simplenews[scheduler][start_date][minute]"]  = $date->format('i');
 
     $this->drupalPost("node/{$node->nid}/simplenews", $edit, t('Submit'));
 
@@ -86,7 +88,7 @@ class SimpleNewsSchedulerNodeCreationTest extends DrupalWebTestCase {
 
     // Call our hook to generate it.
     simplenews_scheduler_cron();
-    
+
     // See if it was created.
     $this->drupalGet("node/{$node->nid}/editions");
     $this->assertText($title);
@@ -97,6 +99,6 @@ class SimpleNewsSchedulerNodeCreationTest extends DrupalWebTestCase {
     $this->clickLink($title, 1);
 
     $this->assertText(t('This is a newsletter edititon. View the the master template of this newsletter here'));
-    $this->assertText(t('Submitted by @name on Fri, 03/02/2012 - 14:05', array('@name' => format_username($this->privileged_user))));
+    $this->assertText(t('Submitted by @name on @date', array('@name' => format_username($this->privileged_user), '@date' => format_date($date->getTimestamp()))));
   }
 }
