@@ -582,11 +582,10 @@ function _simplenews_scheduler_new_edition($nid, $edition_time) {
   node_save($edition_node);
 
   // Insert edition data.
-  $now_time = REQUEST_TIME;
   $values = array(
     'eid' => $edition_node->nid,
     'pid' => $template_node->nid,
-    'date_issued' => $now_time,
+    'date_issued' => $edition_time,
   );
   db_insert('simplenews_scheduler_editions')
     ->fields($values)
