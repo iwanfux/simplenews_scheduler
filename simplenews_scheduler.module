@@ -402,13 +402,7 @@ function simplenews_scheduler_get_newsletters_due($timestamp) {
       $stop = $row->stop_type;
       $stop_edition = $row->stop_edition;
 
-      $count = db_select('simplenews_scheduler_editions', 'e')
-        ->fields('e', array('eid'))
-        ->condition('pid', $pid)
-        ->execute()
-        ->fetchAll();
-      $edition_count = count($count);
-
+      $edition_count = db_query('SELECT COUNT(*) FROM {simplenews_scheduler_editions} WHERE pid = :pid', array(':pid' => $pid))->fetchField();
       // Don't create new edition if the edition number would exceed the given maximum value.
       if ($stop == 2 && $edition_count >=  $stop_edition) {
         continue;
