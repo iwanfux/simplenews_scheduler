@@ -525,7 +525,11 @@ function simplenews_scheduler_node_page($node) {
  * Check whether to display the Scheduled Newsletter tab.
  */
 function _simplenews_scheduler_tab_permission($node) {
-  return simplenews_check_node_types($node->type) && user_access('overview scheduled newsletters');
+  // Check if this is a simplenews node type and permission.
+  if (simplenews_check_node_types($node->type) && user_access('overview scheduled newsletters')) {
+    // Check if this is either a scheduler newsletter or an edition.
+    return !empty($node->simplenews_scheduler) || !empty($node->is_edition);
+  }
 }
 
 /**

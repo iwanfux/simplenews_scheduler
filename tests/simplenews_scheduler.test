@@ -57,9 +57,10 @@ class SimpleNewsSchedulerNodeCreationTest extends DrupalWebTestCase {
     preg_match('|node/(\d+)$|', $this->getUrl(), $matches);
     $node = node_load($matches[1]);
 
-    // Make sure it knows no editions created yet.
+    // Make sure that the editions tab is not visible as long as it's not a
+    // scheduled newsletter.
     $this->drupalGet("node/{$node->nid}/editions");
-    $this->assertText(t("No scheduled newsletter editions have been sent."));
+    $this->assertResponse(403, t('Editions tab not accessible'));
 
     // Now create the simplenews schedule configuration.
     $this->drupalGet("node/{$node->nid}/simplenews");
