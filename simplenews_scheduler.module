@@ -263,7 +263,7 @@ function simplenews_scheduler_submit($form, &$form_state) {
       )), 'error');
   }
   else {
-    drupal_set_message(t('Newsletter Schedule preferences saved'));
+    drupal_set_message(t('Newsletter Schedule preferences have been saved.'));
   }
 }
 
