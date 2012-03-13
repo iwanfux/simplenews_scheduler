@@ -101,7 +101,7 @@ function simplenews_scheduler_form_simplenews_node_tab_send_form_alter(&$form, &
       // If there is no default value, use the current time for start.
       $start_date = !empty($scheduler['start_date']) ? $scheduler['start_date'] : REQUEST_TIME;
       // and Today + 2 years for stop, that should be enough.
-      $stop_date = !empty($scheduler['stop_date']) ? $scheduler['stop_date'] : time() + 2 * 365 * 24 * 60 * 60;
+      $stop_date = !empty($scheduler['stop_date']) ? $scheduler['stop_date'] : REQUEST_TIME + 2 * 365 * 24 * 60 * 60;
 
       $form['simplenews']['scheduler']['start_date'] = array(
         '#type' => 'date_select',
@@ -322,7 +322,7 @@ function simplenews_scheduler_node_view($node) {
  */
 function simplenews_scheduler_cron() {
   // Get the newsletters that need to be sent at this time.
-  $now_time = gmmktime();
+  $now_time = REQUEST_TIME;
   $newsletters_to_send = simplenews_scheduler_get_newsletters_due($now_time);
   foreach ($newsletters_to_send as $newsletter_parent_data) {
     $edition_time = simplenews_scheduler_calculate_edition_time($newsletter_parent_data, $now_time);
@@ -347,15 +347,12 @@ function simplenews_scheduler_cron() {
  *   A row of data from {simplenews_scheduler}, as returned by
  *   simplenews_scheduler_get_newsletters_due().
  * @param $now_time
- *   (Optional) The time of the operation, defaults to current time.
+ *   The time of the operation.
  *
  * @return
  *   The calculcated creation time of the newsletter edition.
  */
-function simplenews_scheduler_calculate_edition_time($newsletter_parent_data, $now_time = NULL) {
-  if ($now_time === NULL) {
-    $now_time = REQUEST_TIME;
-  }
+function simplenews_scheduler_calculate_edition_time($newsletter_parent_data, $now_time) {
   $first_run = intval($newsletter_parent_data->start_date);
   $interval_duration = $newsletter_parent_data->seconds * $newsletter_parent_data->interval_frequency;
   return $first_run + floor(($now_time - $first_run) / $interval_duration) * $interval_duration;
