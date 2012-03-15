@@ -38,6 +38,11 @@ class SimpleNewsSchedulerNodeCreationTest extends DrupalWebTestCase {
       'overview scheduled newsletters',
       ));
     $this->drupalLogin($this->privileged_user);
+
+    // Subscribe a user to simplenews.
+    $categories = simplenews_categories_load_multiple();
+    $this->mail = 'test@example.org';
+    simplenews_subscribe_user($this->mail, key($categories), FALSE, 'test');
   }
 
   /**
@@ -87,8 +92,11 @@ class SimpleNewsSchedulerNodeCreationTest extends DrupalWebTestCase {
     $this->drupalGet("node/{$node->nid}/editions");
     $this->assertText(t("No scheduled newsletter editions have been sent."));
 
-    // Call our hook to generate it.
+    // Call cron implementations in the correct order.
+    // @todo: Replace with drupal_cron_run() once http://drupal.org/node/1479240
+    // is fixed.
     simplenews_scheduler_cron();
+    simplenews_cron();
 
     // See if it was created.
     $this->drupalGet("node/{$node->nid}/editions");
@@ -101,5 +109,9 @@ class SimpleNewsSchedulerNodeCreationTest extends DrupalWebTestCase {
 
     $this->assertText(t('This is a newsletter edititon. View the the master template of this newsletter here'));
     $this->assertText(t('Submitted by @name on @date', array('@name' => format_username($this->privileged_user), '@date' => format_date($date->getTimestamp()))));
+
+    // Check sent mails.
+    $mails = $this->drupalGetMails();
+    $this->assertEqual(1, count($mails), t('Newsletter mail has been sent.'));
   }
 }

@@ -572,12 +572,9 @@ function _simplenews_scheduler_new_edition($nid, $edition_time) {
   // Run the title through token replacement.
   $edition_node->title = token_replace($edition_node->title, array('node' => $edition_node));
 
-  // Let other modules change the cloned node too
-  // module_invoke_all('simplenews_scheduler_edition_clone', $edition_node);
-
   // Invoke hook_simplenews_scheduler_cloned_node_alter() to give installed modules a chance to
   // modify the cloned edition node if necessary before it gets saved.
-  drupal_alter('simplenews_scheduler_cloned_node', $node, $node);
+  drupal_alter('simplenews_scheduler_cloned_node', $edition_node);
 
   // Save the changes of other modules
   node_save($edition_node);
@@ -592,16 +589,14 @@ function _simplenews_scheduler_new_edition($nid, $edition_time) {
     ->fields($values)
     ->execute();
 
-  // Save taxonomy terms.
-  watchdog('simplenews_sched', 'Saved new node ready to be sent. Node ID: !nid', array(
-    '!nid' => $edition_node->nid,
-  ));
+  // Add a watchdog entry.
+  $variables = array('%title' => entity_label('node', $edition_node));
+  $uri = entity_uri('node', $edition_node);
+  $link = l(t('view'), $uri['path'], $uri['options']);
+  watchdog('simplenews_sched', 'Created a new newsletter edition %title', $variables, WATCHDOG_NOTICE, $link);
 
   // Prepare the correct status for Simplenews to pickup.
-  db_update('simplenews_newsletter')
-    ->fields(array('status' => 1))
-    ->condition('nid', $edition_node->nid)
-    ->execute();
+  simplenews_newsletter_update_sent_status($edition_node);
 
   return $edition_node->nid;
 }
