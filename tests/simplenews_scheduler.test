@@ -26,6 +26,7 @@ class SimpleNewsSchedulerWebTestCase extends DrupalWebTestCase {
     // Set the site timezone to something visibly different from UTC, which
     // has daylight saving changes.
     variable_set('date_default_timezone', 'Europe/Kiev');
+    date_default_timezone_set(drupal_get_user_timezone());
   }
 }
 
@@ -132,9 +133,7 @@ class SimpleNewsSchedulerNodeCreationTest extends SimpleNewsSchedulerWebTestCase
     $this->clickLink($title, 1);
 
     $this->assertText(t('This is a newsletter edititon. View the the master template of this newsletter here'));
-    // @todo: test commented out temporarily.
-    // @see drupal.org/node/1528586.
-    //$this->assertText(t('Submitted by @name on @date', array('@name' => format_username($this->privileged_user), '@date' => format_date($date->getTimestamp()))));
+    $this->assertText(t('Submitted by @name on @date', array('@name' => format_username($this->privileged_user), '@date' => format_date($date->getTimestamp()))));
 
     // Check sent mails.
     $mails = $this->drupalGetMails();
