@@ -76,6 +76,8 @@ function simplenews_scheduler_form_simplenews_node_tab_send_form_alter(&$form, &
       $scheduler['activated'] = 0;
     }
 
+    $form_state['simplenews_scheduler'] = $scheduler;
+
     // check prevents php notice if newsletter was sent and only a checkbox appears in the form
     if (isset($form['simplenews']['send'])) {
       $form['simplenews']['send']['#options'] += array(
@@ -226,6 +228,7 @@ function simplenews_scheduler_form_simplenews_node_tab_send_form_alter(&$form, &
  * Additional submit handler for the node_tab_send_form of simplenews.
  */
 function simplenews_scheduler_submit($form, &$form_state) {
+  $scheduler = $form_state['simplenews_scheduler'];
   $nid = $form_state['values']['nid'];
   $node = node_load($nid);
 
@@ -248,6 +251,11 @@ function simplenews_scheduler_submit($form, &$form_state) {
     'php_eval'           => $form_state['values']['simplenews']['scheduler']['php_eval'],
     'title'              => $form_state['values']['simplenews']['scheduler']['title'],
   );
+
+  // For a new scheduler, add the next_run time.
+  if (!isset($scheduler['next_run'])) {
+    $record['next_run'] = $start_date;
+  }
 
   // Update scheduler record.
   $query = db_merge('simplenews_scheduler');
@@ -330,18 +338,41 @@ function simplenews_scheduler_cron() {
     // Create a new edition.
     $eid = _simplenews_scheduler_new_edition($newsletter_parent_data->nid, $edition_time);
 
+    // Update the edition record.
+    simplenews_scheduler_scheduler_update($newsletter_parent_data, $now_time);
+
     // Send it.
     _simplenews_scheduler_send_new_edition($edition_time, $newsletter_parent_data, $eid);
   }
 }
 
 /**
- * Calculates the next edition time.
+ * Updates a scheduler record with any housekeeping changes and saves it.
  *
- * Because the scheduler runs according to last_run timestamp and the cron
- * does not run exactly at the scheduled timestamp, this correction fixes
- * this run's timestamp ($now_time) to the right time by adding a correct
- * interval.
+ * This should be called once a new edition has been created. This sets the
+ * next_run time on the scheduler.
+ *
+ * @todo: Make this a general API function for saving a new or existing scheduler?
+ *
+ * @param $newsletter_parent_data
+ *   A row of data from {simplenews_scheduler}, as returned by
+ *   simplenews_scheduler_get_newsletters_due().
+ * @param $now_time
+ *   The time of the operation.
+ */
+function simplenews_scheduler_scheduler_update($newsletter_parent_data, $now_time) {
+  // Set the run time for the next edition.
+  $newsletter_parent_data->next_run = simplenews_scheduler_calculate_next_run_time($newsletter_parent_data, $now_time);
+
+  drupal_write_record('simplenews_scheduler', $newsletter_parent_data, 'nid');
+}
+
+/**
+ * Calculates time for the current edition about to be created.
+ *
+ * Because cron may run after the scheduled timestamp, one or more scheduled
+ * edition times may have been skipped. This calculates the most recent
+ * possible time for an edition.
  *
  * @param $newsletter_parent_data
  *   A row of data from {simplenews_scheduler}, as returned by
@@ -353,9 +384,102 @@ function simplenews_scheduler_cron() {
  *   The calculcated creation time of the newsletter edition.
  */
 function simplenews_scheduler_calculate_edition_time($newsletter_parent_data, $now_time) {
-  $first_run = intval($newsletter_parent_data->start_date);
-  $interval_duration = $newsletter_parent_data->seconds * $newsletter_parent_data->interval_frequency;
-  return $first_run + floor(($now_time - $first_run) / $interval_duration) * $interval_duration;
+  // Make an offset string of the format '+1 month'.
+  $offset_string = _simplenews_scheduler_make_time_offset($newsletter_parent_data->send_interval, $newsletter_parent_data->interval_frequency);
+  // Make a DateInterval object that represents this.
+  $date_interval = DateInterval::createFromDateString($offset_string);
+
+  // Take the last run time and add as many intervals as possible without going
+  // past 'now'.
+
+  // Create a date object to act as a pointer we'll advance and increment.
+  if ($newsletter_parent_data->last_run) {
+    // Generate a date string to initialize a DateTime() object, otherwise the
+    // timezone is ignored.
+    $start_date = date('Y-m-d H:i:s', $newsletter_parent_data->last_run);
+  }
+  else {
+    $start_date = date('Y-m-d H:i:s', $newsletter_parent_data->start_date);
+  }
+  // Initialize the DateTime object using the configured ste timezone.
+  $pointer_date = new DateTime($start_date);
+
+  while ($pointer_date->getTimestamp() <= $now_time) {
+    // Get the last iteration's timestamp before we change the pointer.
+    $timestamp_old = $pointer_date->getTimestamp();
+
+    // Add interval to the pointer time.
+    $pointer_date->add($date_interval);
+
+    // Check if the pointer is now in the future.
+    if ($pointer_date->getTimestamp() > $now_time) {
+      // If so, return the last iteration timestamp as the edition time.
+      return $timestamp_old;
+    }
+  }
+}
+
+/**
+ * Calculates time for the next edition to be sent.
+ *
+ * This is set in the {simplenews_scheduler} table when a new edition is run,
+ * for subsequent cron runs to query against.
+ *
+ * The time is strictly in the future; that is, if the $now_time is a valid
+ * edition time, a schedule interval is added to it. This is to allow for cron
+ * runs that need to calculate the next run time at the time of the current
+ * edition being sent.
+ *
+ * @param $newsletter_parent_data
+ *   A row of data from {simplenews_scheduler}, as returned by
+ *   simplenews_scheduler_get_newsletters_due().
+ * @param $now_time
+ *   The time of the operation.
+ *
+ * @return
+ *   The calculcated run time for the next future edition.
+ */
+function simplenews_scheduler_calculate_next_run_time($newsletter_parent_data, $now_time) {
+  // Make an offset string of the format '+1 month'.
+  $offset_string = _simplenews_scheduler_make_time_offset($newsletter_parent_data->send_interval, $newsletter_parent_data->interval_frequency);
+  // Make a DateInterval object that represents this.
+  $date_interval = DateInterval::createFromDateString($offset_string);
+
+  // Create a date object to act as a pointer we'll advance and increment.
+  if ($newsletter_parent_data->last_run) {
+    // Generate a date string to initialize a DateTime() object, otherwise the
+    // timezone is ignored.
+    $start_date = date('Y-m-d H:i:s', $newsletter_parent_data->last_run);
+  }
+  else {
+    $start_date = date('Y-m-d H:i:s', $newsletter_parent_data->start_date);
+  }
+  // Initialize the DateTime object using the configured ste timezone.
+  $pointer_date = new DateTime($start_date);
+
+  // Add as many offsets as possible until we get into the future.
+  while ($pointer_date->getTimestamp() <= $now_time) {
+    // Add interval to the pointer time.
+    $pointer_date->add($date_interval);
+  }
+  return $pointer_date->getTimestamp();
+}
+
+/**
+ * Helper to create a PHP time offset string.
+ *
+ * @param $interval
+ *  A time interval. One of hour, day, week, month.
+ * @param $frequency
+ *  An integer that specifies how many of the $interval to create an offset for.
+ *
+ * @return
+ *  A string representing a time offset that can be understood by strtotime(),
+ *  eg '+1 month'.
+ */
+function _simplenews_scheduler_make_time_offset($interval, $frequency) {
+  $offset_string = "+{$frequency} {$interval}";
+  return $offset_string;
 }
 
 /**
@@ -373,52 +497,35 @@ function simplenews_scheduler_calculate_edition_time($newsletter_parent_data, $n
  *  {simplenews_scheduler} table, keyed by newsletter nid.
  */
 function simplenews_scheduler_get_newsletters_due($timestamp) {
-  // Set the default intervals for scheduling.
-  $intervals['hour'] = 3600;
-  $intervals['day'] = 86400;
-  $intervals['week'] = $intervals['day'] * 7;
-  $intervals['month'] = $intervals['day'] * date_days_in_month(date('Y'), date('m'));
+  // Get all newsletters that need to be sent.
+  $result = db_query("SELECT * FROM {simplenews_scheduler} WHERE activated = 1 AND next_run <= :now AND (stop_date > :now OR stop_date = 0)", array(':now' => $timestamp));
 
   $newsletters = array();
-  foreach ($intervals as $interval => $seconds) {
-    // Check daily items that need to be sent.
-    $sql = "SELECT * FROM {simplenews_scheduler} ";
-    $sql .= "WHERE activated = :active ";
-    $sql .= "AND :now - last_run > :interval ";
-    $sql .= "AND send_interval = :frequency ";
-    $sql .= "AND start_date <= :now ";
-    $sql .= "AND (stop_date > :now OR stop_date = 0)";
+  foreach ($result as $newsletter_parent_data) {
+    // The node id of the parent node.
+    $pid = $newsletter_parent_data->nid;
 
-    $result = db_query($sql, array(':active' => 1, ':now' => $timestamp, ':interval' => $seconds, ':frequency' => $interval));
+    // Check upon if sending should stop with a given edition number.
+    $stop = $newsletter_parent_data->stop_type;
+    $stop_edition = $newsletter_parent_data->stop_edition;
 
-    foreach ($result as $newsletter_parent_data) {
-      // The node id of the parent node.
-      $pid = $newsletter_parent_data->nid;
+    $edition_count = db_query('SELECT COUNT(*) FROM {simplenews_scheduler_editions} WHERE pid = :pid', array(':pid' => $pid))->fetchField();
+    // Don't create new edition if the edition number would exceed the given maximum value.
+    if ($stop == 2 && $edition_count >=  $stop_edition) {
+      continue;
+    }
 
-      // Check upon if sending should stop with a given edition number.
-      $stop = $newsletter_parent_data->stop_type;
-      $stop_edition = $newsletter_parent_data->stop_edition;
-
-      $edition_count = db_query('SELECT COUNT(*) FROM {simplenews_scheduler_editions} WHERE pid = :pid', array(':pid' => $pid))->fetchField();
-      // Don't create new edition if the edition number would exceed the given maximum value.
-      if ($stop == 2 && $edition_count >=  $stop_edition) {
+    // does this newsletter have something to evaluate to check running condition?
+    if (strlen($newsletter_parent_data->php_eval)) {
+      $eval_result = eval($newsletter_parent_data->php_eval);
+      if (!$eval_result) {
         continue;
       }
-
-      // does this newsletter have something to evaluate to check running condition?
-      if (strlen($newsletter_parent_data->php_eval)) {
-        $eval_result = eval($newsletter_parent_data->php_eval);
-        if (!$eval_result) {
-          continue;
-        }
-      }
-
-      // Add the number of seconds the newsletter's interval represents.
-      $newsletter_parent_data->seconds = $seconds;
-
-      $newsletters[$pid] = $newsletter_parent_data;
     }
+
+    $newsletters[$pid] = $newsletter_parent_data;
   }
+
   return $newsletters;
 }
 

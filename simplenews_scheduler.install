@@ -24,6 +24,12 @@ function simplenews_scheduler_schema() {
         'not null' => TRUE,
         'default' => 0,
       ),
+      'next_run' => array(
+        'description' => 'The future timestamp the next scheduled newsletter is due to be sent.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
       'activated' => array(
         'description' => 'Whether the schedule is active.',
         'type' => 'int',
@@ -129,5 +135,44 @@ function simplenews_scheduler_update_7000() {
       'initial' => '[node:title]',
     );
     db_add_field('simplenews_scheduler', 'title', $field);
+  }
+}
+
+/**
+ * Add the next_run field to the scheduler table and populate it.
+ */
+function simplenews_scheduler_update_7001() {
+  // Only act if the field doesn't exist yet: this accounts for the possibility
+  // it's been added in a 62xx update.
+  if (!db_field_exists('simplenews_scheduler', 'next_run')) {
+    // Add the field.
+    $field = array(
+      'description' => 'The future timestamp the next scheduled newsletter is due to be sent.',
+      'type' => 'int',
+      'not null' => TRUE,
+      'default' => 0,
+      'initial' => 0,
+    );
+    db_add_field('simplenews_scheduler', 'next_run', $field);
+
+    // Populate the new field with each schedule's next run time.
+    // Retrieve all records into an associative array keyed by nid.
+    $schedules = db_query("SELECT * FROM {simplenews_scheduler}")->fetchAllAssoc('nid');
+    foreach ($schedules as $nid => $schedule) {
+      // Clear last_run to force the next_run calculation to work from the
+      // start_date. This ensures that any error in previous edition dates due to
+      // bugs with month length is ignored.
+      // @see http://drupal.org/node/1364784
+      $schedule->last_run = 0;
+
+      // Get the next run time relative to the request time.
+      $next_run = simplenews_scheduler_calculate_next_run_time($schedule, REQUEST_TIME);
+
+      // Don't use drupal_write_record() in a hook_update_N().
+      db_update('simplenews_scheduler')
+        ->fields(array('next_run' => $next_run))
+        ->condition('nid', $nid)
+        ->execute();
+    }
   }
 }
