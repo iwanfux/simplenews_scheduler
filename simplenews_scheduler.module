@@ -258,21 +258,14 @@ function simplenews_scheduler_submit($form, &$form_state) {
   }
 
   // Update scheduler record.
-  $query = db_merge('simplenews_scheduler');
-  $query->key(array(
+  db_merge('simplenews_scheduler')
+    ->key(array(
       'nid' => $nid,
     ))
     ->fields($record)
     ->execute();
 
-  if (!$query) {
-    drupal_set_message(t('Saving or updating schedule settings for <em>@title</em> has been unsuccessful.', array(
-        '@title' => $node->title,
-      )), 'error');
-  }
-  else {
-    drupal_set_message(t('Newsletter Schedule preferences have been saved.'));
-  }
+  drupal_set_message(t('Newsletter Schedule preferences have been saved.'));
 }
 
 /**
