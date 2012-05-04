@@ -672,9 +672,9 @@ function _simplenews_scheduler_new_edition($nid, $edition_time) {
   // Run the title through token replacement.
   $edition_node->title = token_replace($edition_node->title, array('node' => $edition_node));
 
-  // Invoke hook_simplenews_scheduler_cloned_node_alter() to give installed modules a chance to
-  // modify the cloned edition node if necessary before it gets saved.
-  drupal_alter('simplenews_scheduler_cloned_node', $edition_node);
+  // Invoke simplenews_scheduler_edition_node() to give installed modules a
+  // chance to modify the cloned edition node if necessary before it gets saved.
+  drupal_alter('simplenews_scheduler_edition_node', $edition_node, $template_node);
 
   // Save the changes of other modules
   node_save($edition_node);
