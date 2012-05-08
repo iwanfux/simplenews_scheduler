@@ -15,12 +15,17 @@
  * a bootstrapped database.
  */
 class SimpleNewsSchedulerWebTestCase extends DrupalWebTestCase {
-  // Note: subclasses should call this with an array of modules.
+
+  /**
+   * Overrides DrupalWebTestCase::setUp().
+   *
+   * @param $modules
+   *   Additional modules to enable for the test. simplenews_scheduler and
+   *   the dependencies are always enabled.
+   */
   function setUp($modules = array()) {
     // Add our dependencies to the module list.
-    // @todo: Pending fix to module dependencies, require both date_api and date.
-    // @see http://drupal.org/node/1372140
-    $modules += array('simplenews', 'token', 'date_api', 'date', 'simplenews_scheduler');
+    $modules = array_merge(array('simplenews_scheduler'), $modules);
     parent::setUp($modules);
 
     // Set the site timezone to something visibly different from UTC, which

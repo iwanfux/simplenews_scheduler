@@ -4,5 +4,5 @@ core = 7.x
 package = Mail
 files[] = tests/simplenews_scheduler.test
 dependencies[] = simplenews
-dependencies[] = date
+dependencies[] = date_api
 dependencies[] = token
