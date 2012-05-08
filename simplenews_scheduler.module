@@ -55,40 +55,38 @@ function simplenews_scheduler_menu() {
  */
 function simplenews_scheduler_form_simplenews_node_tab_send_form_alter(&$form, &$form_state) {
   global $user;
-  $node = node_load($form['nid']['#value']);
+  // Add schedule settings to the send newsletter form.
+  if (user_access('send scheduled newsletters')) {
+    // Make sure that this is not an edition.
+    $node = node_load($form['nid']['#value']);
+    // Only add the schedule send options if the newsletter has not been sent,
+    // in which case there is no send form element.
+    if (isset($form['simplenews']['send']) && !isset($node->simplenews_scheduler_edition)) {
+      // Set the default values.
+      $form['#submit'][] = "simplenews_scheduler_submit";
 
-  // Add schedule settings to the newsletter edit form.
-  if (isset($form['simplenews']) && user_access('send scheduled newsletters') && !isset($node->simplenews_scheduler_edition)) {
-    // Set the default values.
-    $form['#submit'][] = "simplenews_scheduler_submit";
+      $scheduler = array();
+      $record = db_select('simplenews_scheduler', 's')
+        ->fields('s')
+        ->condition('nid', $node->nid)
+        ->execute()
+        ->fetchAssoc();
 
-    $scheduler = array();
-    $record = db_select('simplenews_scheduler', 's')
-      ->fields('s')
-      ->condition('nid', arg(1))
-      ->execute()
-      ->fetchAssoc();
+      if (!empty($record)) {
+        $scheduler = $record;
+      }
+      else {
+        $scheduler['activated'] = 0;
+      }
 
-    if (!empty($record)) {
-      $scheduler = $record;
-    }
-    else {
-      $scheduler['activated'] = 0;
-    }
+      $form_state['simplenews_scheduler'] = $scheduler;
 
-    $form_state['simplenews_scheduler'] = $scheduler;
-
-    // check prevents php notice if newsletter was sent and only a checkbox appears in the form
-    if (isset($form['simplenews']['send'])) {
       $form['simplenews']['send']['#options'] += array(
         SIMPLENEWS_COMMAND_SEND_SCHEDULE => t('Send newsletter according to schedule'),
         SIMPLENEWS_COMMAND_SEND_NONE => t("Stop newsletter schedule"),
       );
       $form['simplenews']['send']['#default_value'] = ($scheduler['activated'] == 1) ? SIMPLENEWS_COMMAND_SEND_SCHEDULE : variable_get('simplenews_send', SIMPLENEWS_COMMAND_SEND_NONE);
-    }
 
-    // Display settings only if this is not an edition.
-    if (!isset($node->simplenews_scheduler_edition)) {
       $form['simplenews']['scheduler'] = array(
         '#type' => 'fieldset',
         '#title' => t('Schedule details'),
@@ -213,13 +211,9 @@ function simplenews_scheduler_form_simplenews_node_tab_send_form_alter(&$form, &
         '#value' => $scheduler['activated'],
       );
     }
-    else {
+    elseif (isset($node->simplenews_scheduler_edition)) {
       // This is a newsletter edition.
-      $title .= t('This node is part of a scheduled newsletter configuration. View the original newsletter <a href="@parent">here</a>.', array('@parent' => url('node/' . $node->simplenews_scheduler_edition['pid'])));
-      $form['simplenews']['none']['#title'] = array(
-        'type' => 'item',
-        '#title' => $title,
-      );
+      $form['simplenews']['none']['#title'] = t('This node is part of a scheduled newsletter configuration. View the original newsletter <a href="@parent">here</a>.', array('@parent' => url('node/' . $node->simplenews_scheduler_edition->pid)));
     }
   }
 }

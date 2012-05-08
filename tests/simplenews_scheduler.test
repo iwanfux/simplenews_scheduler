@@ -143,6 +143,32 @@ class SimpleNewsSchedulerNodeCreationTest extends SimpleNewsSchedulerWebTestCase
     // Check sent mails.
     $mails = $this->drupalGetMails();
     $this->assertEqual(1, count($mails), t('Newsletter mail has been sent.'));
+
+    $this->clickLink(t('Newsletter'));
+    $this->assertText(t('This node is part of a scheduled newsletter configuration.'));
+    $this->clickLink(t('here'));
+    $this->assertEqual(url('node/' . $node->nid, array('absolute' => TRUE)), $this->getUrl());
+
+    // Test the tab on a sent newsletter, schedule details should not be shown.
+    $title ="newsletter " . $this->randomName(8);
+
+    $edit = array();
+    $edit['title'] = $title;
+    $edit["body[und][0][value]"] = $this->randomName(16);
+    $this->drupalPost('node/add/simplenews', $edit, t('Save'));
+    $this->assertText($title);
+
+    preg_match('|node/(\d+)$|', $this->getUrl(), $matches);
+    $node = node_load($matches[1]);
+
+    $edit = array();
+    $edit["simplenews[send]"] = SIMPLENEWS_COMMAND_SEND_NOW;
+    $this->drupalPost("node/{$node->nid}/simplenews", $edit, t('Submit'));
+    $this->assertNoText(t('Schedule details'));
+
+    // Check sent mails.
+    $mails = $this->drupalGetMails();
+    $this->assertEqual(1, count($mails), t('Newsletter mail has been sent.'));
   }
 }
 
