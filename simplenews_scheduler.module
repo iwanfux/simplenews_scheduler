@@ -187,6 +187,7 @@ function simplenews_scheduler_form_simplenews_node_tab_send_form_alter(&$form, &
         '#default_value' => isset($scheduler['php_eval']) ? $scheduler['php_eval'] : '',
         '#required' => FALSE,
         '#description' => t('Additionally evaluate the following PHP code and only issue the newsletter edition if it returns true. Do not include &lt;?php ?&gt; tags.'),
+        '#access' => user_access('use PHP for settings'),
       );
       $form['simplenews']['scheduler']['title'] = array(
         '#type' => 'textfield',
