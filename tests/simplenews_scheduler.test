@@ -122,11 +122,8 @@ class SimpleNewsSchedulerNodeCreationTest extends SimpleNewsSchedulerWebTestCase
     $this->drupalGet("node/{$node->nid}/editions");
     $this->assertText(t("No scheduled newsletter editions have been sent."));
 
-    // Call cron implementations in the correct order.
-    // @todo: Replace with drupal_cron_run() once http://drupal.org/node/1479240
-    // is fixed.
-    simplenews_scheduler_cron();
-    simplenews_cron();
+    // Execute cron.
+    drupal_cron_run();
 
     // See if it was created.
     $this->drupalGet("node/{$node->nid}/editions");

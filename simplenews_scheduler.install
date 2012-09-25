@@ -113,6 +113,19 @@ function simplenews_scheduler_schema() {
   return $schema;
 }
 
+/**
+ * Implements hook_install().
+ */
+function simplenews_scheduler_install() {
+  // Update the module weight to run before simplenews.
+  db_update('system')
+    ->condition('name', 'simplenews_scheduler')
+    ->fields(array(
+      'weight' => -1,
+    ))
+    ->execute();
+}
+
 /*
  * Implements hook_update_last_removed().
  */
@@ -175,4 +188,19 @@ function simplenews_scheduler_update_7001() {
         ->execute();
     }
   }
+}
+
+/**
+ * Update the module weight if it has not been customized.
+ */
+function simplenews_scheduler_update_7002() {
+  // Update the module weight to run before simplenews.
+  db_update('system')
+    ->condition('name', 'simplenews_scheduler')
+    // Only change the existing value if it has not been customized.
+    ->condition('weight', 0)
+    ->fields(array(
+      'weight' => -1,
+    ))
+    ->execute();
 }
