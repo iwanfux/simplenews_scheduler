@@ -114,6 +114,7 @@ class SimpleNewsSchedulerNodeCreationTest extends SimpleNewsSchedulerWebTestCase
     $edit["simplenews[scheduler][start_date][day]"]     = $date->format('j');
     $edit["simplenews[scheduler][start_date][hour]"]    = $date->format('G');
     $edit["simplenews[scheduler][start_date][minute]"]  = $date->format('i');
+    $edit["simplenews[scheduler][title]"]  = "Custom title [site:name]";
 
     $this->drupalPost("node/{$node->nid}/simplenews", $edit, t('Submit'));
 
@@ -127,12 +128,14 @@ class SimpleNewsSchedulerNodeCreationTest extends SimpleNewsSchedulerWebTestCase
 
     // See if it was created.
     $this->drupalGet("node/{$node->nid}/editions");
-    $this->assertText($title);
+    $this->assertText("Custom title");
     $this->assertNoText(t("No scheduled newsletter editions have been sent."));
 
-    // Go to node and verify creation time. Due to the breadcrumb, this is the
-    // second link with the label on the page.
-    $this->clickLink($title, 1);
+    $this->assertText($title); // original real node title
+
+    // Go to node and verify creation time and token for custom title
+    // @todo: make this real token integration
+    $this->clickLink("Custom title ". variable_get('site_name', 'Drupal'));
 
     $this->assertText(t('This is a newsletter edititon. View the the master template of this newsletter here'));
     $this->assertText(t('Submitted by @name on @date', array('@name' => format_username($this->privileged_user), '@date' => format_date($date->getTimestamp()))));

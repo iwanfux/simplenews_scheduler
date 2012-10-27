@@ -665,7 +665,14 @@ function _simplenews_scheduler_new_edition($nid, $edition_time) {
   $edition_node->created = $edition_time;
 
   // Run the title through token replacement.
-  $edition_node->title = token_replace($edition_node->title, array('node' => $edition_node));
+  // Get title pattern from the scheduler record, not newsletter node.
+  // $edition_node->title = token_replace($edition_node->title, array('node' => $edition_node));
+  $schedrecord = db_select('simplenews_scheduler', 's')
+    ->fields('s')
+    ->condition('nid', $template_node->nid)
+    ->execute()
+    ->fetchAssoc();
+  $edition_node->title = token_replace($schedrecord['title'], array('node' => $template_node));
 
   // Invoke simplenews_scheduler_edition_node() to give installed modules a
   // chance to modify the cloned edition node if necessary before it gets saved.
