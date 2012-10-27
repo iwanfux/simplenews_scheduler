@@ -114,6 +114,14 @@ function simplenews_scheduler_schema() {
 }
 
 /**
+ * Implementation of hook_uninstall().
+ */
+function simplenews_scheduler_uninstall() {
+  drupal_uninstall_schema('simplenews_scheduler');
+  drupal_uninstall_schema('simplenews_scheduler_editions');
+}
+
+/**
  * Implements hook_install().
  */
 function simplenews_scheduler_install() {
