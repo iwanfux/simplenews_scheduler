@@ -310,7 +310,7 @@ function simplenews_scheduler_node_delete($node) {
  */
 function simplenews_scheduler_node_view($node) {
   if (isset($node->simplenews_scheduler_edition) && user_access('send scheduled newsletters')) {
-    drupal_set_message(t('This is a newsletter edititon. View the the master template of this newsletter <a href="!master_url">here</a>', array('!master_url' => url('node/' . $node->simplenews_edition_parent))));
+    drupal_set_message(t('This is a newsletter edition. View the the master template of this newsletter <a href="!master_url">here</a>', array('!master_url' => url('node/' . $node->simplenews_edition_parent))));
   }
 }
 
