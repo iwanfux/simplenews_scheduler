@@ -299,6 +299,10 @@ function simplenews_scheduler_node_delete($node) {
   db_delete('simplenews_scheduler')
     ->condition('nid', $node->nid)
     ->execute();
+    
+  db_delete('simplenews_scheduler_editions')
+    ->condition('eid', $node->nid)
+    ->execute();    
 }
 
 /**
