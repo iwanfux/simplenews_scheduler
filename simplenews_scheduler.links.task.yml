@@ -1,0 +1,4 @@
+simplenews_scheduler.node_page:
+  route_name: simplenews_scheduler.node_page
+  title: 'Newsletter Editions'
+  weight: 2
