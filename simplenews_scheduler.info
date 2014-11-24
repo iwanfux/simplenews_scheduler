@@ -1,9 +1,0 @@
-name = "Simplenews Scheduler"
-description = "Allows a schedule to be set for sending (and resending) a Simplenews item."
-core = 7.x
-package = Mail
-php = 5.3
-files[] = tests/simplenews_scheduler.test
-dependencies[] = simplenews
-dependencies[] = date_api
-dependencies[] = token

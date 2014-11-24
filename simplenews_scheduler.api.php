@@ -19,5 +19,5 @@
  *   The original scheduler node object.
  */
 function hook_simplenews_scheduler_edition_node_alter($edition_node, $scheduler_node) {
-  $node->title = 'Your newsletter from ' . REQUEST_TIME;
+  $edition_node->setTitle('Your newsletter from ' . REQUEST_TIME);
 }
