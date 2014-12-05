@@ -2,6 +2,6 @@ simplenews_scheduler.node_page:
   path: '/node/{node}/editions'
   defaults:
     _title: 'Scheduled newsletter editions'
-    _content: '\Drupal\simplenews_scheduler\Controller\EditionsController::nodeEditionsPage'
+    _controller: '\Drupal\simplenews_scheduler\Controller\EditionsController::nodeEditionsPage'
   requirements:
     _custom_access: '\Drupal\simplenews_scheduler\Controller\EditionsController::checkAccess'

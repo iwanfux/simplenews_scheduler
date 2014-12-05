@@ -6,8 +6,11 @@
  * for sending (and resending) a Simplenews item.
  */
 
+use Drupal\Core\Datetime\DrupalDateTime;
+use Drupal\Core\Datetime\Entity\DateFormat;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
+use Drupal\node\NodeInterface;
 
 /**
  * NEWSLETTER SEND COMMAND
@@ -21,8 +24,8 @@ define('SIMPLENEWS_COMMAND_SEND_NONE', 5);
  * @todo replace the "This newsletter has been sent" checkbox of simplenews module
  * by a message like "Last edition of this newsletter was sent at 12.12.2012"
  */
-function simplenews_scheduler_form_simplenews_node_tab_alter(&$form, FormStateInterface $form_state, $form_id) {
-//  $user = \Drupal::currentUser();
+function simplenews_scheduler_form_simplenews_node_tab_alter(array &$form, FormStateInterface $form_state) {
+  $user = \Drupal::currentUser();
   // Add schedule settings to the send newsletter form.
   if (\Drupal::currentUser()->hasPermission('send scheduled newsletters')) {
     // Make sure that this is not an edition.
@@ -71,23 +74,39 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(&$form, FormStateIn
       // and Today + 2 years for stop, that should be enough.
       $stop_date = !empty($scheduler['stop_date']) ? $scheduler['stop_date'] : REQUEST_TIME + 2 * 365 * 24 * 60 * 60;
 
+      // Get DateTime objects for the default values of start and stop date.
+      $default_start_date = DrupalDateTime::createFromTimestamp($start_date);
+      $default_stop_date = DrupalDateTime::createFromTimestamp($stop_date);
+
+      // Get DateFormat objects for the default date and time formats.
+      // @todo formats not working?! localization?
+      $date_format = '';
+      $time_format = '';
+      if ($date_format_entity = DateFormat::load('html_date')) {
+        /** @var $date_format_entity \Drupal\Core\Datetime\DateFormatInterface */
+        $date_format = $date_format_entity->getPattern();
+      }
+      if ($time_format_entity = DateFormat::load('html_time')) {
+        /** @var $time_format_entity \Drupal\Core\Datetime\DateFormatInterface */
+        $time_format = $time_format_entity->getPattern();
+      }
+
+      $site_timezones_url = Url::fromRoute('system.date_format_list');
+      $user_timezones_url = Url::fromRoute('entity.user.edit_form', ['user' => $user->id()]);
+
       $form['scheduler']['start_date'] = array(
-        '#type' => 'date',
+        '#type' => 'datetime',
         '#title' => t('Start sending on'),
-        '#default_value' => array(
-          'year' => date('Y', $start_date),
-          'month' => date('m', $start_date),
-          'day' => date('d', $start_date),
-        ),
+        '#default_value' => $default_start_date,
         '#required' => TRUE,
-        //'#date_format' => 'Y-m-d H:i',
-        //'#date_label_position' => 'within',
-        //'#date_year_range' => '-0:+3',
+        '#date_date_format' => $date_format,
+        '#date_time_format' => $time_format,
+        '#date_year_range' => '-0:+3',
         '#description' => t('Intervals work by creating a new node at the
           desired time and marking this to be sent, ensure
-          you have your <a href="@site">site timezones</a>
-          configured and <a href="@user">user timezone</a>
-          configured.', array('@site' => 'SITE', '@user' => 'USER')),//url('admin/config/date-time'), '@user' => url('user/' . $user->uid . '/edit'))),
+          you have your !site_link
+          configured and !user_link
+          configured.', array('!site_link' => \Drupal::l(t('site timezones'), $site_timezones_url), '!user_link' => \Drupal::l(t('user timezone'), $user_timezones_url))),
       );
 
       $intervals = array(
@@ -135,22 +154,18 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(&$form, FormStateIn
         '#required' => TRUE,
         '#description' => t('The maximum number of editions which should be sent.'),
         '#states' => array(
-          'visible' => array(':input[name="simplenews[scheduler][stoptype]"]' => array('value' => (string) 2)),
+          'visible' => array(':input[name="stoptype"]' => array('value' => (string) 2)),
         ),
       );
 
       $form['scheduler']['stop_date'] = array(
-        '#type' => 'date',
+        '#type' => 'datetime',
         '#title' => t('Stop sending on'),
-        '#default_value' => array(
-          'year' => date('Y', $stop_date),
-          'month' => date('m', $stop_date),
-          'day' => date('d', $stop_date),
-        ),
+        '#default_value' => $default_stop_date,
         '#required' => TRUE,
-        //'#date_format' => 'Y-m-d H:i',
-        //'#date_label_position' => 'within',
-        //'#date_year_range' => '-0:+3',
+        '#date_date_format' => $date_format,
+        '#date_time_format' => $time_format,
+        '#date_year_range' => '-0:+3',
         '#description' => t('The date when the last sent newsletter will be sent.'),
         '#states' => array(
           'visible' => array(':input[name="stoptype"]' => array('value' => (string) 1)),
@@ -182,7 +197,11 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(&$form, FormStateIn
     }
     elseif (isset($node->simplenews_scheduler_edition)) {
       // This is a newsletter edition.
-      // $form['simplenews']['none']['#title'] = t('This node is part of a scheduled newsletter configuration. View the original newsletter <a href="@parent">here</a>.', array('@parent' => url('node/' . $node->simplenews_scheduler_edition->pid)));
+      $parent_node = \Drupal::entityManager()->getStorage('node')->load($node->simplenews_edition_parent);
+      $form['scheduler_msg'] = array(
+        '#markup' => t('This node is part of a scheduled newsletter configuration. View the original newsletter !parent.', array('!parent' => \Drupal::l(t('here'), $parent_node->urlInfo()))),
+        '#weight' => -99,
+      );
 
     }
   }
@@ -191,7 +210,7 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(&$form, FormStateIn
 /**
  * Additional submit handler for the node_tab_send_form of simplenews.
  */
-function simplenews_scheduler_submit($form, &$form_state) {
+function simplenews_scheduler_submit(array &$form, FormStateInterface $form_state) {
   $values = $form_state->getValues();
   $node = $form_state->get('node');
   $nid = $node->id();
@@ -243,7 +262,7 @@ function simplenews_scheduler_node_load($nodes) {
     ->execute()
     ->fetchAll();
 
-  foreach ($result as $key => $record) {
+  foreach ($result as $record) {
     $nodes[$record->nid]->simplenews_scheduler = $record;
   }
 
@@ -253,7 +272,7 @@ function simplenews_scheduler_node_load($nodes) {
     ->execute()
     ->fetchAll();
 
-  foreach ($result as $key => $record) {
+  foreach ($result as $record) {
     $nodes[$record->eid]->simplenews_scheduler_edition = $record;
     $nodes[$record->eid]->is_edition = TRUE;
     $nodes[$record->eid]->simplenews_edition_parent = $record->pid;
@@ -263,24 +282,14 @@ function simplenews_scheduler_node_load($nodes) {
 /**
  * Implements hook_node_delete().
  */
-function simplenews_scheduler_node_delete($node) {
+function simplenews_scheduler_node_delete(NodeInterface $node) {
   db_delete('simplenews_scheduler')
     ->condition('nid', $node->id())
     ->execute();
-    
+
   db_delete('simplenews_scheduler_editions')
     ->condition('eid', $node->id())
     ->execute();    
-}
-
-/**
- * Implements hook_node_view().
- */
-function simplenews_scheduler_node_view($node) {
-  if (isset($node->simplenews_scheduler_edition) && \Drupal::currentUser()->hasPermission('send scheduled newsletters')) {
-    drupal_set_message(t('This is a newsletter edition. View the the master template of this newsletter <a href="!master_url">here</a>', array('!master_url' => 'node/' . $node->simplenews_edition_parent))); // @todo
-//    drupal_set_message(t('This is a newsletter edition. View the the master template of this newsletter <a href="!master_url">here</a>', array('!master_url' => url('node/' . $node->simplenews_edition_parent))));
-  }
 }
 
 /**
@@ -324,8 +333,10 @@ function simplenews_scheduler_cron() {
 function simplenews_scheduler_scheduler_update($newsletter_parent_data, $now_time) {
   // Set the run time for the next edition.
   $newsletter_parent_data->next_run = simplenews_scheduler_calculate_next_run_time($newsletter_parent_data, $now_time);
-
-  drupal_write_record('simplenews_scheduler', $newsletter_parent_data, 'nid');
+  \Drupal::database()->merge('simplenews_scheduler')
+    ->key(array('nid' => $newsletter_parent_data->nid))
+    ->fields(get_object_vars($newsletter_parent_data))
+    ->execute();
 }
 
 /**
@@ -511,7 +522,7 @@ function _simplenews_scheduler_send_new_edition($edition_time, $newsletter_paren
 /**
  * Function clones a node from the given template newsletter node.
  */
-function simplenews_scheduler_clone_node($node) {
+function simplenews_scheduler_clone_node(NodeInterface $node) {
   if ($node->id() > 0) {
     $clone = $node->createDuplicate();
 
@@ -521,36 +532,6 @@ function simplenews_scheduler_clone_node($node) {
     $clone->save();
     return $clone;
   }
-}
-
-/**
- * Check whether to display the Scheduled Newsletter tab.
- */
-function _simplenews_scheduler_tab_permission($node) {
-  // Check if this is a simplenews node type and permission.
-  if (simplenews_check_node_types($node->type) && \Drupal::currentUser()->hasPermission('overview scheduled newsletters')) {
-    // Check if this is either a scheduler newsletter or an edition.
-    return !empty($node->simplenews_scheduler) || !empty($node->is_edition);
-  }
-}
-
-/**
- * Find Full HTML input format.
- *
- * Use the Drupal API for finding the Full HTML input format, this is what the subsequent newsletter editions
- * need to be set to.
- */
-function _simplenews_scheduler_get_full_html_format() {
-  $user = \Drupal::currentUser();
-  $formats = filter_formats($user);
-
-  foreach ($formats as $index => $format) {
-    if (stristr($format->name, 'Full HTML')) {
-      return $index;
-    }
-  }
-
-  return false;
 }
 
 /**
@@ -579,10 +560,10 @@ function _simplenews_scheduler_new_edition($nid, $edition_time) {
   // $edition_node->title = token_replace($edition_node->title, array('node' => $edition_node));
   $schedrecord = db_select('simplenews_scheduler', 's')
     ->fields('s')
-    ->condition('nid', $template_node->nid)
+    ->condition('nid', $template_node->id())
     ->execute()
     ->fetchAssoc();
-  $edition_node->title = token_replace($schedrecord['title'], array('node' => $template_node));
+  $edition_node->title = \Drupal::token()->replace($schedrecord['title'], array('node' => $template_node));
 
   // Invoke simplenews_scheduler_edition_node() to give installed modules a
   // chance to modify the cloned edition node if necessary before it gets saved.
@@ -602,13 +583,15 @@ function _simplenews_scheduler_new_edition($nid, $edition_time) {
     ->execute();
 
   // Add a watchdog entry.
-  $variables = array('%title' => $edition_node->label());
-  $link = \Drupal::l(t('view'), $edition_node->url());
+  $context = array(
+    '%title' => $edition_node->label(),
+    'link' => \Drupal::l(t('view'), $edition_node->urlInfo()),
+  );
 
-  \Drupal::logger('simplenews_sched')->notice('Created a new newsletter edition %title', $variables);
+  \Drupal::logger('simplenews_sched')->notice('Created a new newsletter edition %title', $context);
 
   // Prepare the correct status for Simplenews to pickup.
-  simplenews_newsletter_update_sent_status($edition_node);
+  simplenews_issue_update_sent_status($edition_node);
 
   return $edition_node->id();
 }

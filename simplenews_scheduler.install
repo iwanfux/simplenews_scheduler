@@ -121,10 +121,5 @@ function simplenews_scheduler_uninstall() {
  */
 function simplenews_scheduler_install() {
   // Update the module weight to run before simplenews.
-  /*db_update('system')
-    ->condition('name', 'simplenews_scheduler')
-    ->fields(array(
-      'weight' => -1,
-    ))
-    ->execute();*/
+  module_set_weight('simplenews_scheduler', -1);
 }

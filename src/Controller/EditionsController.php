@@ -6,8 +6,8 @@
 namespace Drupal\simplenews_scheduler\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\node\Entity\Node;
 use Drupal\node\NodeInterface;
+use Drupal\Core\Access\AccessResult;
 
 /**
  * Default controller for the simplenews_scheduler module.
@@ -21,8 +21,9 @@ class EditionsController extends ControllerBase {
     // Check if this is a simplenews node type and permission.
     if ($node->hasField('simplenews_issue') && $node->simplenews_issue->target_id != NULL && \Drupal::currentUser()->hasPermission('overview scheduled newsletters')) {
       // Check if this is either a scheduler newsletter or an edition.
-      return \Drupal\Core\Access\AccessResult::allowedIf(!empty($node->simplenews_scheduler) || !empty($node->is_edition));
+      return AccessResult::allowedIf(!empty($node->simplenews_scheduler) || !empty($node->is_edition));
     }
+    return AccessResult::forbidden();
   }
 
   /**
@@ -51,41 +52,42 @@ class EditionsController extends ControllerBase {
 
   public function nodeEditionsPage(NodeInterface $node) {
     $nid = $this->getPid($node);
-    $output = '';
+    $output = array();
     $rows = array();
 
     if ($nid == $node->id()) { // This is the template newsletter.
-      $output .= '<p>' . t('This is a newsletter template node of which all corresponding editions nodes are based on.') . '</p>';
+      $output['prefix']['#markup'] = '<p>' . t('This is a newsletter template node of which all corresponding editions nodes are based on.') . '</p>';
+
+      // Load the corresponding editions from the database to further process.
+      $result = db_select('simplenews_scheduler_editions', 's')
+        ->extend('Drupal\Core\Database\Query\PagerSelectExtender')
+        ->limit(20)
+        ->fields('s')
+        ->condition('s.pid', $nid)
+        ->execute()
+        ->fetchAll();
+
+      foreach ($result as $row) {
+        $node = \Drupal::entityManager()->getStorage('node')->load($row->eid);
+        $rows[] = array($node->link(), format_date($row->date_issued, 'custom', 'Y-m-d H:i'));
+      }
+
+      // Display a table with all editions.
+      // @todo change to render array
+      $output['table'] = array(
+        '#type' => 'table',
+        '#header' => array(t('Edition Node'), t('Date sent')),
+        '#rows' => $rows,
+        '#attributes' => array('class' => array('schedule-history')),
+        '#empty' => t('No scheduled newsletter editions have been sent.'),
+      );
+      $output['pager'] = array('#theme' => 'pager');
     }
     else { // This is a newsletter edition.
-      // $output .= '<p>' . t('This node is part of a scheduled newsletter configuration. View the original newsletter <a href="@parent">here</a>.', array('@parent' => url('node/' . $nid))) . '</p>';
+      $master_node = \Drupal::entityManager()->getStorage('node')->load($nid);
+      $output['prefix']['#markup'] = '<p>' . t('This node is part of a scheduled newsletter configuration. View the original newsletter <a href="@parent">here</a>.', array('@parent' => $master_node->url())) . '</p>';
 
     }
-
-    // Load the corresponding editions from the database to further process.
-    $result = db_select('simplenews_scheduler_editions', 's')
-      ->extend('Drupal\Core\Database\Query\PagerSelectExtender')
-      ->limit(20)
-      ->fields('s')
-      ->condition('s.pid', $nid)
-      ->execute()
-      ->fetchAll();
-
-    foreach ($result as $row) {
-      $node = \Drupal::entityManager()->getStorage('node')->load($row->eid);
-      $rows[] = array(\Drupal::l($node->getTitle(), $node->url()), format_date($row->date_issued, 'custom', 'Y-m-d H:i'));
-    }
-
-    // Display a table with all editions.
-    // @todo to renderarray
-    $tablecontent = array(
-      'header' => array(t('Edition Node'), t('Date sent')),
-      'rows' => $rows,
-      'attributes' => array('class' => array('schedule-history')),
-      'empty' => t('No scheduled newsletter editions have been sent.'),
-    );
-    $output .= _theme('table', $tablecontent);
-    $output .= _theme('pager', array('tags' => 20));
 
     return $output;
   }
