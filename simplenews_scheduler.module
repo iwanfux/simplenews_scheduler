@@ -56,7 +56,7 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(array &$form, FormS
         SIMPLENEWS_COMMAND_SEND_SCHEDULE => t('Send newsletter according to schedule'),
         SIMPLENEWS_COMMAND_SEND_NONE => t("Stop newsletter schedule"),
       );
-      $form['send']['#default_value'] = ($scheduler['activated'] == 1) ? SIMPLENEWS_COMMAND_SEND_SCHEDULE : \Drupal::config('simplenews_scheduler.settings')->get('simplenews_send');
+      $form['send']['#default_value'] = ($scheduler['activated'] == 1) ? SIMPLENEWS_COMMAND_SEND_SCHEDULE : \Drupal::config('simplenews_scheduler.settings')->get('default_send_action');
 
       $form['scheduler'] = array(
         '#type' => 'fieldset',

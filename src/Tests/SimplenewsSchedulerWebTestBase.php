@@ -9,7 +9,6 @@
 
 namespace Drupal\simplenews_scheduler\Tests;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\simpletest\WebTestBase;
 
 /**
@@ -17,7 +16,7 @@ use Drupal\simpletest\WebTestBase;
  *
  * @group simplenews_scheduler
  */
-class SimplenewsSchedulerWebTestBase extends WebTestBase {
+abstract class SimplenewsSchedulerWebTestBase extends WebTestBase {
 
   public static $modules = array('simplenews_scheduler');
 

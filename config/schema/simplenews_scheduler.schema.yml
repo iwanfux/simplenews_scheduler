@@ -2,5 +2,5 @@ simplenews_scheduler.settings:
   type: mapping
   label: Settings
   mapping:
-    simplenews_send:
-      type: 'NULL'
+    default_send_action:
+      type: integer

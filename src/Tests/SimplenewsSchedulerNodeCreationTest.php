@@ -69,7 +69,7 @@ class SimplenewsSchedulerNodeCreationTest extends SimplenewsSchedulerWebTestBase
     // Specify a start time 30 minutes in the past to be able to have a known
     // edition creation time that can be checked.
     $date = new \DateTime();
-    $date->sub(new \DateInterval('PT90M'));
+    $date->sub(new \DateInterval('PT30M'));
 
     $edit["start_date[date]"] = $date->format('Y-m-d');
     $edit["start_date[time]"] = $date->format('H:i:s');
@@ -97,7 +97,7 @@ class SimplenewsSchedulerNodeCreationTest extends SimplenewsSchedulerWebTestBase
     $site_config = \Drupal::config('system.site');
     $this->clickLink("Custom title ". $site_config->get('name'));
 
-    //$this->assertText(t('This is a newsletter edititon. View the the master template of this newsletter here'));
+    //$this->assertText(t('This is a newsletter edition. View the master template of this newsletter here'));
     $this->assertText(t('on @date', array('@date' => format_date($date->getTimestamp()))));
 
     // Check sent mails.

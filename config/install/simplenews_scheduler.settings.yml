@@ -1,1 +1,2 @@
-simplenews_send: null
+# default value for send action (SIMPLENEWS_COMMAND_SEND_NONE)
+default_send_action: 5
