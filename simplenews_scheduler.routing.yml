@@ -5,3 +5,5 @@ simplenews_scheduler.node_page:
     _controller: '\Drupal\simplenews_scheduler\Controller\EditionsController::nodeEditionsPage'
   requirements:
     _custom_access: '\Drupal\simplenews_scheduler\Controller\EditionsController::checkAccess'
+  options:
+    _admin_route: TRUE
