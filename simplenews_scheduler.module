@@ -91,7 +91,7 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(array &$form, FormS
         $time_format = $time_format_entity->getPattern();
       }
 
-      $site_timezones_url = Url::fromRoute('system.date_format_list');
+      $site_timezones_url = Url::fromRoute('entity.date_format.collection');
       $user_timezones_url = Url::fromRoute('entity.user.edit_form', ['user' => $user->id()]);
 
       $form['scheduler']['start_date'] = array(
