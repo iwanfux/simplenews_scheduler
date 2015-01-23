@@ -11,6 +11,7 @@ use Drupal\Core\Datetime\Entity\DateFormat;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\node\NodeInterface;
+use Symfony\Component\Validator\Constraints\False;
 
 /**
  * NEWSLETTER SEND COMMAND
@@ -52,21 +53,17 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(array &$form, FormS
 
       $form_state->set('scheduler', $scheduler);
 
-      $form['send']['#options'] += array(
-        SIMPLENEWS_COMMAND_SEND_SCHEDULE => t('Send newsletter according to schedule'),
-        SIMPLENEWS_COMMAND_SEND_NONE => t("Stop newsletter schedule"),
-      );
-      $form['send']['#default_value'] = ($scheduler['activated'] == 1) ? SIMPLENEWS_COMMAND_SEND_SCHEDULE : \Drupal::config('simplenews_scheduler.settings')->get('default_send_action');
-
       $form['scheduler'] = array(
         '#type' => 'fieldset',
-        '#title' => t('Schedule details'),
+        '#title' => t('Scheduled Send'),
         '#attributes' => array('class' => array('schedule-info')),
         '#collapsible' => TRUE,
         '#collapsed' => FALSE,
-        '#states' => array(
-          'visible' => array(':input[name="send"]' => array('value' => (string) SIMPLENEWS_COMMAND_SEND_SCHEDULE)),
-        ),
+      );
+
+      $form['scheduler']['enable'] = array(
+        '#type' => 'checkbox',
+        '#title' => t('Scheduled Send'),
       );
 
       // If there is no default value, use the current time for start.
@@ -91,10 +88,21 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(array &$form, FormS
         $time_format = $time_format_entity->getPattern();
       }
 
-      $site_timezones_url = Url::fromRoute('system.date_format_list');
+      $site_timezones_url = Url::fromRoute('entity.date_format.collection');
       $user_timezones_url = Url::fromRoute('entity.user.edit_form', ['user' => $user->id()]);
 
-      $form['scheduler']['start_date'] = array(
+      $form['scheduler']['options'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Scheduled Send Optons'),
+        '#attributes' => array('class' => array('schedule-info')),
+        '#collapsible' => TRUE,
+        '#collapsed' => FALSE,
+        '#states' => array(
+          'invisible' => array(':input[name="enable"]' => array('checked' => FALSE)),
+        ),
+      );
+
+      $form['scheduler']['options']['start_date'] = array(
         '#type' => 'datetime',
         '#title' => t('Start sending on'),
         '#default_value' => $default_start_date,
@@ -116,7 +124,7 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(array &$form, FormS
         'month' => t('Month'),
       );
 
-      $form['scheduler']['interval'] = array(
+      $form['scheduler']['options']['interval'] = array(
         '#type' => 'select',
         '#title' => t('Sending interval'),
         '#options' => $intervals,
@@ -124,7 +132,7 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(array &$form, FormS
         '#default_value' => !empty($scheduler['send_interval']) ? $scheduler['send_interval'] : 'week',
       );
 
-      $form['scheduler']['frequency'] = array(
+      $form['scheduler']['options']['frequency'] = array(
         '#type' => 'textfield',
         '#title' => t('Interval frequency'),
         '#size' => 5,
@@ -138,7 +146,7 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(array &$form, FormS
         t('After a maximum number of editions')
       );
 
-      $form['scheduler']['stoptype'] = array(
+      $form['scheduler']['options']['stoptype'] = array(
         '#type' => 'radios',
         '#title' => t('Stop sending'),
         '#options' => $stoptypes,
@@ -146,7 +154,7 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(array &$form, FormS
         '#attributes' => array('class' => array('simplenews-command-stop')),
       );
 
-      $form['scheduler']['stop_edition'] = array(
+      $form['scheduler']['options']['stop_edition'] = array(
         '#type' => 'textfield',
         '#default_value' => isset($scheduler['stop_edition']) ? $scheduler['stop_edition'] : 0,
         '#size' => 5,
@@ -158,7 +166,7 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(array &$form, FormS
         ),
       );
 
-      $form['scheduler']['stop_date'] = array(
+      $form['scheduler']['options']['stop_date'] = array(
         '#type' => 'datetime',
         '#title' => t('Stop sending on'),
         '#default_value' => $default_stop_date,
@@ -172,20 +180,20 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(array &$form, FormS
         ),
       );
 
-      $form['scheduler']['title'] = array(
+      $form['scheduler']['options']['title'] = array(
         '#type' => 'textfield',
         '#title' => t('Title pattern for new edition nodes'),
         '#description' => t('New edition nodes will have their title set to the above string, with tokens replaced.'),
         '#required' => TRUE,
         '#default_value' => isset($scheduler['title']) ? $scheduler['title'] : '[node:title]',
       );
-      $form['scheduler']['token_help'] = array(
+      $form['scheduler']['options']['token_help'] = array(
         '#title' => t('Replacement patterns'),
         '#type' => 'fieldset',
         '#collapsible' => TRUE,
         '#collapsed' => TRUE,
       );
-      $form['scheduler']['token_help']['help'] = array(
+      $form['scheduler']['options']['token_help']['help'] = array(
         '#theme' => 'token_tree',
         '#token_types' => array('node'),
       );
@@ -289,7 +297,7 @@ function simplenews_scheduler_node_delete(NodeInterface $node) {
 
   db_delete('simplenews_scheduler_editions')
     ->condition('eid', $node->id())
-    ->execute();    
+    ->execute();
 }
 
 /**
