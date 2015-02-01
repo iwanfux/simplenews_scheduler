@@ -16,7 +16,6 @@ use Drupal\node\NodeInterface;
  * NEWSLETTER SEND COMMAND
  */
 define('SIMPLENEWS_COMMAND_SEND_SCHEDULE', 4);
-define('SIMPLENEWS_COMMAND_SEND_NONE', 5);
 
 /**
  * Implements hook_form_FORM_ID_alter().
