@@ -38,7 +38,7 @@ abstract class SimplenewsSchedulerWebTestBase extends WebTestBase {
     parent::setUp();
     // Set the site timezone to something visibly different from UTC, which
     // has daylight saving changes.
-    $date_config = \Drupal::config('system.date');
+    $date_config = $this->config('system.date');
     $date_config->set('timezone.default', 'Europe/Kiev');
     $date_config->save();
 

@@ -33,8 +33,6 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(array &$form, FormS
     // Only add the schedule send options if the newsletter has not been sent,
     // in which case there is no send form element.
     if (isset($form['send']) && !isset($node->simplenews_scheduler_edition)) {
-      // Set the default values.
-      $form['#submit'][] = "simplenews_scheduler_submit";
 
       $scheduler = array();
       $record = db_select('simplenews_scheduler', 's')
@@ -60,7 +58,7 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(array &$form, FormS
         '#title' => t('Scheduled Newsletter'),
       );
 
-      $form['scheduler']['enable'] = array(
+      $form['scheduler']['enable_scheduler'] = array(
         '#type' => 'checkbox',
         '#title' => t('Enable scheduled newsletter'),
         '#default_value' => $checked,
@@ -205,8 +203,8 @@ function simplenews_scheduler_form_simplenews_node_tab_alter(array &$form, FormS
 
       $form['scheduler']['settings']['submit'] = array(
         '#type' => 'submit',
-        '#value' => t('Save Scheduler Settings'),
-        //'#submit' => array('::submitForm'),
+        '#value' => t('Save scheduler settings'),
+        '#submit' => array('simplenews_scheduler_submit'),
       );
     }
     elseif (isset($node->simplenews_scheduler_edition)) {
@@ -229,42 +227,54 @@ function simplenews_scheduler_submit(array &$form, FormStateInterface $form_stat
   $node = $form_state->get('node');
   $nid = $node->id();
 
+  if ($form_state->getValue('enable_scheduler')) {
+    $stoptype = $values['stoptype'];
+    $start_date = strtotime($values['start_date']);
+    $stop_date = ($stoptype == 1) ? strtotime($values['stop_date']) : 0;
 
-  $stoptype = $values['stoptype'];
-  $start_date = strtotime($values['start_date']);
-  $stop_date = ($stoptype == 1) ? strtotime($values['stop_date']) : 0;
+    $record = array(
+      'nid' => $nid,
+      'send_interval' => $values['interval'],
+      'interval_frequency' => $values['frequency'],
+      'start_date' => $start_date,
+      'stop_type' => $stoptype,
+      'stop_date' => $stop_date,
+      'stop_edition' => $values['stop_edition'],
+      'title' => $values['title'],
+      'activated' => 1,
+    );
 
-  $record = array(
-    'nid'                => $nid,
-    'send_interval'      => $values['interval'],
-    'interval_frequency' => $values['frequency'],
-    'start_date'         => $start_date,
-    'stop_type'          => $stoptype,
-    'stop_date'          => $stop_date,
-    'stop_edition'       => $values['stop_edition'],
-    'title'              => $values['title'],
-  );
+    // For a new scheduler, add the next_run time.
+    if (!isset($values['next_run'])) {
+      $record['next_run'] = $start_date;
+    }
 
-  // For a new scheduler, add the next_run time.
-  if (!isset($values['next_run'])) {
-    $record['next_run'] = $start_date;
+    // Update scheduler record.
+    db_merge('simplenews_scheduler')
+      ->key(array(
+        'nid' => $nid,
+      ))
+      ->fields($record)
+      ->execute();
+
+    simplenews_issue_update_sent_status($node, SIMPLENEWS_COMMAND_SEND_SCHEDULE);
+  }
+  else {
+    // The form was submitted with the checkbox unchecked, disable an eventually
+    // existing scheduler configuration.
+    db_update('simplenews_scheduler')
+      ->condition('nid', $nid)
+      ->fields(['activated' => 0])
+      ->execute();
   }
 
-  // Update scheduler record.
-  db_merge('simplenews_scheduler')
-    ->key(array(
-      'nid' => $nid,
-    ))
-    ->fields($record)
-    ->execute();
-
-  drupal_set_message(t('Newsletter Schedule preferences have been saved.'));
+  drupal_set_message(t('Newsletter schedule preferences have been saved.'));
 }
 
 /**
- * Implements hook_node_load().
+ * Implements hook_node_storage_load().
  */
-function simplenews_scheduler_node_load($nodes) {
+function simplenews_scheduler_node_storage_load($nodes) {
   $nids = array_keys($nodes);
 
   $result = db_select('simplenews_scheduler', 's')

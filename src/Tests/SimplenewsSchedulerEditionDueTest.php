@@ -24,8 +24,8 @@ class SimplenewsSchedulerEditionDueTest extends SimplenewsSchedulerWebTestBase {
     $admin_user = $this->drupalCreateUser(array(
       'access content',
       'administer nodes',
-      'create simplenews content',
-      'edit own simplenews content',
+      'create simplenews_issue content',
+      'edit own simplenews_issue content',
       'send newsletter',
       'send scheduled newsletters',
       'overview scheduled newsletters',
@@ -39,7 +39,7 @@ class SimplenewsSchedulerEditionDueTest extends SimplenewsSchedulerWebTestBase {
 
     // Create a parent newsletter node.
     $node = Node::create(array(
-      'type' => 'simplenews',
+      'type' => 'simplenews_issue',
       'title' => 'Parent',
       'uid' => 1,
       'status' => 1
