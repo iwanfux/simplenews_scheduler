@@ -91,8 +91,6 @@ class SimplenewsSchedulerNodeCreationTest extends SimplenewsSchedulerWebTestBase
     $this->assertText("Custom title");
     $this->assertNoText(t("No scheduled newsletter editions have been sent."));
 
-    $this->assertText($title); // original real node title
-
     // Go to node and verify creation time and token for custom title
     $site_config = $this->config('system.site');
     $this->clickLink("Custom title ". $site_config->get('name'));
